@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "Renderer.h"
 
 const uint32_t DEF_WIDTH = 1280;
 const uint32_t DEF_HEIGHT = 720;
@@ -26,10 +27,17 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    while (!glfwWindowShouldClose(window)) {
-        glfwPollEvents();
-    }
+    try {
+        auto temp = new RenderContext(window);
+        while (!glfwWindowShouldClose(window)) {
+            glfwPollEvents();
+        }
 
+        delete temp;
+    }
+    catch (std::exception& e) {
+        spdlog::error(e.what());
+    }
     glfwDestroyWindow(window);
     glfwTerminate();
 
