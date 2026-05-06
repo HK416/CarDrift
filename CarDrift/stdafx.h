@@ -12,10 +12,19 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
+
 #include <imgui.h>
-#include <imgui_impl_win32.h>
+#include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 
+#include <spdlog/spdlog.h>
+#include <spdlog/cfg/env.h>
+#include <spdlog/fmt/ostr.h>
+
+#include <cstdint>
 #include <exception>
 #include <iostream>
 #include <string>

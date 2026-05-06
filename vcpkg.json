@@ -5,12 +5,14 @@
   "dependencies": [
     "vulkan-headers",
     "vulkan-memory-allocator",
+    "spdlog",
+    "glfw3",
     "glm",
     {
       "name": "imgui",
       "features": [
         "vulkan-binding",
-        "win32-binding",
+        "glfw-binding",
         "freetype"
       ]
     }
