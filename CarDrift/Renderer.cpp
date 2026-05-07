@@ -469,9 +469,9 @@ void CommandManager::endSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueu
     vkFreeCommandBuffers(m_device, m_commandPool, 1, &commandBuffer);
 }
 
-Renderer::Renderer(GLFWwindow* window) {
-    m_context = std::make_unique<RenderContext>(window);
-    m_swapchain = std::make_unique<RenderSwapchain>(m_context.get(), window);
+Renderer::Renderer(GLFWwindow* window) : m_window(window) {
+    m_context = std::make_unique<RenderContext>(m_window);
+    m_swapchain = std::make_unique<RenderSwapchain>(m_context.get(), m_window);
     m_commandManager = std::make_unique<CommandManager>(m_context.get(), m_swapchain->getImageViews().size());
     createSyncObjects();
 }
@@ -498,6 +498,7 @@ void Renderer::drawFrame() {
     VkResult result = vkAcquireNextImageKHR(device, m_swapchain->getSwapchain(), UINT64_MAX, m_imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        recreateSwapchain();
         return;
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         throw std::runtime_error("Failed to acquire swapchain image!");
@@ -573,10 +574,35 @@ void Renderer::drawFrame() {
     presentInfo.pSwapchains = swapchains;
     presentInfo.pImageIndices = &imageIndex;
 
-    vkQueuePresentKHR(graphicsQueue, &presentInfo);
+    VkResult presentResult = vkQueuePresentKHR(graphicsQueue, &presentInfo);
+
+    if (presentResult == VK_ERROR_OUT_OF_DATE_KHR ||
+        presentResult == VK_SUBOPTIMAL_KHR || m_framebufferResized) {
+        m_framebufferResized = false;
+        recreateSwapchain();
+    }
 
     // fixme: Waiting!!!
     vkQueueWaitIdle(graphicsQueue);
+}
+
+void Renderer::recreateSwapchain() {
+    int width = 0;
+    int height = 0;
+    glfwGetFramebufferSize(m_window, &width, &height);
+
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(m_window, &width, &height);
+        glfwWaitEvents();
+    }
+
+    vkDeviceWaitIdle(m_context->getDevice());
+
+    m_commandManager.reset();
+    m_swapchain.reset();
+
+    m_swapchain = std::make_unique<RenderSwapchain>(m_context.get(), m_window);
+    m_commandManager = std::make_unique<CommandManager>(m_context.get(), m_swapchain->getImageViews().size());
 }
 
 void Renderer::transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout) {

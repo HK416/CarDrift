@@ -113,10 +113,15 @@ public:
     ~Renderer();
 
     void drawFrame();
+    void recreateSwapchain();
+    void setFramebufferResized() { m_framebufferResized = true; }
 
 private:
     void createSyncObjects();
     void transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
+
+private:
+    GLFWwindow* m_window = nullptr; // 소유하지 않는 클래스 맴버
 
 private:
     std::unique_ptr<RenderContext> m_context;

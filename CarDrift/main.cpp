@@ -29,6 +29,13 @@ int main(int argc, char** argv) {
 
     try {
         auto renderer = std::make_unique<Renderer>(window);
+
+        glfwSetWindowUserPointer(window, renderer.get());
+        glfwSetFramebufferSizeCallback(window, [](GLFWwindow* window, int width, int height) {
+            auto renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
+            renderer->setFramebufferResized();
+        });
+
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
             renderer->drawFrame();
