@@ -13,12 +13,14 @@ public:
     VkSurfaceKHR getSurface() const { return m_surface; }
     uint32_t getGraphicsQueueFamilyIndex() const { return m_graphicsQueueFamilyIndex; }
     VkQueue getGraphicsQueue() const { return m_graphicsQueue; }
+    VmaAllocator getAllocator() const { return m_allocator; }
 
 private:
     void createRenderInstance();
     void setupDebugMessenger();
     void createRenderSurface(GLFWwindow* window);
     void createRenderDevice();
+    void createMemoryAllocator();
 
     bool checkValidationLayerSupport();
     std::vector<const char*> getRequiredExtensions();
@@ -32,6 +34,8 @@ private:
     uint32_t m_graphicsQueueFamilyIndex = 0;
     VkQueue m_graphicsQueue = VK_NULL_HANDLE;
 
+    VmaAllocator m_allocator = VK_NULL_HANDLE;
+
 #ifdef NDEBUG
     const bool m_enableValidationLayers = false;
 #else
@@ -42,37 +46,41 @@ private:
     };
 };
 
-//class RenderSwapchain {
-//public:
-//    RenderSwapchain() = delete;
-//    RenderSwapchain(const RenderSwapchain&) = delete;
-//    RenderSwapchain(RenderContext* context, VmaAllocator allocator, GLFWwindow* window);
-//    ~RenderSwapchain();
-//
-//    VkSwapchainKHR getSwapchain() const { return m_swapchain; }
-//    VkFormat getFormat() const { return m_swapchainImageFormat; }
-//    VkExtent2D getExtent() const { return m_swapchainExtent; }
-//    const std::vector<VkImageView>& getImageViews() const { return m_swapchainImageViews; }
-//    VkImageView getDepthImageView() const { return m_depthImageView; }
-//
-//private:
-//    void createSwapchain(RenderContext* context, GLFWwindow* window);
-//    void createImageViews(RenderContext* context);
-//    void createDepthResources(RenderContext* context, VmaAllocator allocator);
-//
-//private:
-//    VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
-//    VkExtent2D m_swapchainExtent;
-//    std::vector<VkImage> m_swapchainImages;
-//    std::vector<VkImageView> m_swapchainImageViews;
-//    VkFormat m_swapchainImageFormat = VK_FORMAT_B8G8R8A8_UNORM;
-//
-//    VkImage m_depthImage = VK_NULL_HANDLE;
-//    VmaAllocation m_depthImageAllocation = VK_NULL_HANDLE;
-//    VkImageView m_depthImageView = VK_NULL_HANDLE;
-//    VkFormat m_depthImageFormat = VK_FORMAT_D32_SFLOAT;
-//};
-//
+class RenderSwapchain {
+public:
+    RenderSwapchain() = delete;
+    RenderSwapchain(const RenderSwapchain&) = delete;
+    RenderSwapchain(RenderContext* context, GLFWwindow* window);
+    ~RenderSwapchain();
+
+    VkSwapchainKHR getSwapchain() const { return m_swapchain; }
+    VkFormat getFormat() const { return m_swapchainImageFormat; }
+    VkExtent2D getExtent() const { return m_swapchainExtent; }
+    const std::vector<VkImageView>& getImageViews() const { return m_swapchainImageViews; }
+    VkImageView getDepthImageView() const { return m_depthImageView; }
+
+private:
+    void createSwapchain(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, GLFWwindow* window);
+    void createImageViews();
+    void createDepthResources();
+
+private:
+    VkDevice m_device = VK_NULL_HANDLE; // 소유하지 않는 클래스 맴버
+    VmaAllocator m_allocator = VK_NULL_HANDLE; // 소유하지 않는 클래스 맴버
+
+private:
+    VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
+    VkExtent2D m_swapchainExtent;
+    std::vector<VkImage> m_swapchainImages;
+    std::vector<VkImageView> m_swapchainImageViews;
+    const VkFormat m_swapchainImageFormat = VK_FORMAT_B8G8R8A8_UNORM;
+
+    VkImage m_depthImage = VK_NULL_HANDLE;
+    VmaAllocation m_depthImageAllocation = VK_NULL_HANDLE;
+    VkImageView m_depthImageView = VK_NULL_HANDLE;
+    const VkFormat m_depthImageFormat = VK_FORMAT_D32_SFLOAT;
+};
+
 //class CommandManager {
 //public:
 //    CommandManager(RenderContext* context);
@@ -84,17 +92,6 @@ private:
 //private:
 //    VkCommandPool m_commandPool = VK_NULL_HANDLE;
 //    std::vector<VkCommandBuffer> m_commandBuffers;
-//};
-//
-//class ResourceManager {
-//public:
-//    ResourceManager(RenderContext* context);
-//    ~ResourceManager();
-//
-//    VmaAllocator getAllocator() const { return m_allocator; }
-//
-//private:
-//    VmaAllocator m_allocator = VK_NULL_HANDLE;
 //};
 //
 //class Renderer {

@@ -28,12 +28,15 @@ int main(int argc, char** argv) {
     }
 
     try {
-        auto temp = new RenderContext(window);
+        auto context = new RenderContext(window);
+        auto swapchain = new RenderSwapchain(context, window);
+
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
         }
 
-        delete temp;
+        delete swapchain;
+        delete context;
     }
     catch (std::exception& e) {
         spdlog::error(e.what());
