@@ -56,6 +56,7 @@ public:
     VkSwapchainKHR getSwapchain() const { return m_swapchain; }
     VkFormat getFormat() const { return m_swapchainImageFormat; }
     VkExtent2D getExtent() const { return m_swapchainExtent; }
+    const std::vector<VkImage>& getImages() const { return m_swapchainImages; }
     const std::vector<VkImageView>& getImageViews() const { return m_swapchainImageViews; }
     VkImageView getDepthImageView() const { return m_depthImageView; }
 
@@ -81,40 +82,50 @@ private:
     const VkFormat m_depthImageFormat = VK_FORMAT_D32_SFLOAT;
 };
 
-//class CommandManager {
-//public:
-//    CommandManager(RenderContext* context);
-//    ~CommandManager();
-//
-//    VkCommandPool getCommandPool() const { return m_commandPool; }
-//    VkCommandBuffer getCommandBuffer(uint32_t index) const { return m_commandBuffers[index]; }
-//
-//private:
-//    VkCommandPool m_commandPool = VK_NULL_HANDLE;
-//    std::vector<VkCommandBuffer> m_commandBuffers;
-//};
-//
-//class Renderer {
-//public:
-//    Renderer(GLFWwindow* window);
-//    ~Renderer();
-//
-//    void drawFrame();
-//
-//private:
-//    void createSyncObjects();
-//
-//private:
-//    std::unique_ptr<RenderContext> m_context;
-//    std::unique_ptr<ResourceManager> m_resourceManager;
-//    std::unique_ptr<RenderSwapchain> m_swapchain;
-//    std::unique_ptr<CommandManager> m_commandManager;
-//
-//    VkSemaphore m_imageAvailableSemaphore = VK_NULL_HANDLE;
-//    VkSemaphore m_renderFinishedSemaphore = VK_NULL_HANDLE;
-//    VkFence m_inFlightFence = VK_NULL_HANDLE;
-//
-//    VkDescriptorPool m_imguiDescriptorPool = VK_NULL_HANDLE;
-//
-//    bool m_framebufferResized = false;
-//};
+class CommandManager {
+public:
+    CommandManager() = delete;
+    CommandManager(const CommandManager&) = delete;
+    CommandManager(RenderContext* context, size_t swapchainImageCount);
+    ~CommandManager();
+
+    VkCommandPool getCommandPool() const { return m_commandPool; }
+    VkCommandBuffer getCommandBuffer(uint32_t index) const { return m_commandBuffers[index]; }
+
+    VkCommandBuffer beginSingleTimeCommands();
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue graphicsQueue);
+
+private:
+    void createCommandPool(uint32_t queueFamilyIndex);
+    void createCommandBuffers(size_t swapchainImageCount);
+
+private:
+    VkDevice m_device = VK_NULL_HANDLE; // 소유하지 않는 클래스 맴버
+
+private:
+    VkCommandPool m_commandPool = VK_NULL_HANDLE;
+    std::vector<VkCommandBuffer> m_commandBuffers;
+};
+
+class Renderer {
+public:
+    Renderer(GLFWwindow* window);
+    ~Renderer();
+
+    void drawFrame();
+
+private:
+    void createSyncObjects();
+    void transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
+
+private:
+    std::unique_ptr<RenderContext> m_context;
+    std::unique_ptr<RenderSwapchain> m_swapchain;
+    std::unique_ptr<CommandManager> m_commandManager;
+
+    VkSemaphore m_imageAvailableSemaphore = VK_NULL_HANDLE;
+    VkSemaphore m_renderFinishedSemaphore = VK_NULL_HANDLE;
+    VkFence m_inFlightFence = VK_NULL_HANDLE;
+
+    bool m_framebufferResized = false;
+};
