@@ -4,6 +4,41 @@
 const uint32_t DEF_WIDTH = 1280;
 const uint32_t DEF_HEIGHT = 720;
 
+void handleWindowSize(GLFWwindow* window, int width, int height) {
+    auto renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
+    renderer->setFramebufferResized();
+}
+
+void handleKeyInput(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    auto renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
+    auto sceneMgr = renderer->getSceneManager();
+    sceneMgr->dispatchEvent(KeyEvent{key, scancode, action, mods});
+}
+
+void handleMouseButton(GLFWwindow* window, int button, int action, int mods) {
+    auto renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
+    auto sceneMgr = renderer->getSceneManager();
+    sceneMgr->dispatchEvent(MouseButtonEvent{button, action, mods});
+}
+
+void handleScroll(GLFWwindow* window, double xoffset, double yoffset) {
+    auto renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
+    auto sceneMgr = renderer->getSceneManager();
+    sceneMgr->dispatchEvent(MouseScrollEvent{xoffset, yoffset});
+}
+
+void handleCursorPos(GLFWwindow* window, double xpos, double ypos) {
+    auto renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
+    auto sceneMgr = renderer->getSceneManager();
+    sceneMgr->dispatchEvent(CursorPosEvent{xpos, ypos});
+}
+
+void handleCharInput(GLFWwindow* window, unsigned int codepoint) {
+    auto renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
+    auto sceneMgr = renderer->getSceneManager();
+    sceneMgr->dispatchEvent(CharEvent{codepoint});
+}
+
 int main(int argc, char** argv) {
     if (glfwInit() == GLFW_FALSE) {
         spdlog::error("Failed to initialize GLFW");
@@ -29,16 +64,29 @@ int main(int argc, char** argv) {
 
     try {
         auto renderer = std::make_unique<Renderer>(window);
-
         glfwSetWindowUserPointer(window, renderer.get());
-        glfwSetFramebufferSizeCallback(window, [](GLFWwindow* window, int width, int height) {
-            auto renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
-            renderer->setFramebufferResized();
-        });
+
+        glfwSetKeyCallback(window, handleKeyInput);
+        glfwSetMouseButtonCallback(window, handleMouseButton);
+        glfwSetScrollCallback(window, handleScroll);
+        glfwSetCursorPosCallback(window, handleCursorPos);
+        glfwSetCharCallback(window, handleCharInput);
+        glfwSetFramebufferSizeCallback(window, handleWindowSize);
+
+        float lastTime = static_cast<float>(glfwGetTime());
 
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
-            renderer->drawFrame();
+
+            float currentTime = static_cast<float>(glfwGetTime());
+            float elapsedTimeSec = currentTime - lastTime;
+            lastTime = currentTime;
+
+            if (elapsedTimeSec > 0.25f) {
+                elapsedTimeSec = 0.25f;
+            }
+
+            renderer->drawFrame(elapsedTimeSec);
         }
     }
     catch (std::exception& e) {

@@ -1,4 +1,5 @@
 #pragma once
+#include "SceneBase.h"
 
 class RenderContext {
 public:
@@ -59,6 +60,7 @@ public:
     const std::vector<VkImage>& getImages() const { return m_swapchainImages; }
     const std::vector<VkImageView>& getImageViews() const { return m_swapchainImageViews; }
     VkImageView getDepthImageView() const { return m_depthImageView; }
+    VkImage getDepthImage() const { return m_depthImage; }
 
 private:
     void createSwapchain(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, GLFWwindow* window);
@@ -112,9 +114,11 @@ public:
     Renderer(GLFWwindow* window);
     ~Renderer();
 
-    void drawFrame();
+    void drawFrame(float elapsedTimeSec);
     void recreateSwapchain();
     void setFramebufferResized() { m_framebufferResized = true; }
+
+    SceneManager* getSceneManager() const { return m_sceneManager.get(); }
 
 private:
     void createSyncObjects();
@@ -122,11 +126,11 @@ private:
 
 private:
     GLFWwindow* m_window = nullptr; // 소유하지 않는 클래스 맴버
-
-private:
     std::unique_ptr<RenderContext> m_context;
     std::unique_ptr<RenderSwapchain> m_swapchain;
     std::unique_ptr<CommandManager> m_commandManager;
+
+    std::unique_ptr<SceneManager> m_sceneManager;
 
     VkSemaphore m_imageAvailableSemaphore = VK_NULL_HANDLE;
     VkSemaphore m_renderFinishedSemaphore = VK_NULL_HANDLE;

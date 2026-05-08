@@ -473,6 +473,9 @@ Renderer::Renderer(GLFWwindow* window) : m_window(window) {
     m_context = std::make_unique<RenderContext>(m_window);
     m_swapchain = std::make_unique<RenderSwapchain>(m_context.get(), m_window);
     m_commandManager = std::make_unique<CommandManager>(m_context.get(), m_swapchain->getImageViews().size());
+
+    m_sceneManager = std::make_unique<SceneManager>(m_context.get());
+
     createSyncObjects();
 }
 
@@ -485,7 +488,10 @@ Renderer::~Renderer() {
     vkDestroyFence(device, m_inFlightFence, nullptr);
 }
 
-void Renderer::drawFrame() {
+void Renderer::drawFrame(float elapsedTimeSec) {
+    // 1. Update Scene
+    m_sceneManager->update(elapsedTimeSec);
+
     VkDevice device = m_context->getDevice();
     VkQueue graphicsQueue = m_context->getGraphicsQueue();
 
@@ -514,6 +520,7 @@ void Renderer::drawFrame() {
 
     // Transition image layout to COLOR_ATTACHMENT_OPTIMAL
     transitionImageLayout(cmd, m_swapchain->getImages()[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    transitionImageLayout(cmd, m_swapchain->getDepthImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
     // 4. Begin Rendering (Dynamic Rendering)
     VkClearValue clearColor = { {{0.1f, 0.1f, 0.2f, 1.0f}} };
@@ -526,15 +533,26 @@ void Renderer::drawFrame() {
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     colorAttachment.clearValue = clearColor;
 
+    VkRenderingAttachmentInfo depthAttachment{};
+    depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    depthAttachment.imageView = m_swapchain->getDepthImageView();
+    depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depthAttachment.clearValue.depthStencil = {1.0f, 0};
+
     VkRenderingInfo renderingInfo{};
     renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
     renderingInfo.renderArea = { {0, 0}, m_swapchain->getExtent() };
     renderingInfo.layerCount = 1;
     renderingInfo.colorAttachmentCount = 1;
     renderingInfo.pColorAttachments = &colorAttachment;
+    renderingInfo.pDepthAttachment = &depthAttachment;
 
     vkCmdBeginRendering(cmd, &renderingInfo);
-    // TODO!
+    
+    m_sceneManager->render(cmd, m_swapchain->getExtent());
+
     vkCmdEndRendering(cmd);
 
     // Transition image layout to PRESENT_SRC_KHR
@@ -613,7 +631,13 @@ void Renderer::transitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = image;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+    if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    } else {
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
@@ -629,6 +653,13 @@ void Renderer::transitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
 
         sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
+               newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
     } else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL &&
                newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
         barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
