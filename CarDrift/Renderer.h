@@ -1,5 +1,5 @@
 #pragma once
-#include "SceneBase.h"
+#include "GameScene.h"
 
 class RenderContext {
 public:

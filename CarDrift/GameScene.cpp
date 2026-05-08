@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "SceneBase.h"
+#include "GameScene.h"
 
 GameScene::GameScene(RenderContext* context, SceneManager* manager) 
     : m_context(context), m_manager(manager) {}

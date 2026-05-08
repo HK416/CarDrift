@@ -24,9 +24,11 @@
 #include <spdlog/cfg/env.h>
 #include <spdlog/fmt/ostr.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <exception>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <queue>
 #include <string>
