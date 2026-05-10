@@ -320,7 +320,7 @@ void RenderSwapchain::createSwapchain(VkPhysicalDevice physicalDevice, VkSurface
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = surface;
     createInfo.minImageCount = imageCount;
-    createInfo.imageFormat = m_swapchainImageFormat;
+    createInfo.imageFormat = swapchainImageFormat;
     createInfo.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     createInfo.imageExtent.width = static_cast<uint32_t>(width);
     createInfo.imageExtent.height = static_cast<uint32_t>(height);
@@ -351,7 +351,7 @@ void RenderSwapchain::createImageViews() {
         createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         createInfo.image = m_swapchainImages[i];
         createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        createInfo.format = m_swapchainImageFormat;
+        createInfo.format = swapchainImageFormat;
         createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         createInfo.subresourceRange.levelCount = 1;
         createInfo.subresourceRange.layerCount = 1;
@@ -371,7 +371,7 @@ void RenderSwapchain::createDepthResources() {
     createInfo.extent.depth = 1;
     createInfo.mipLevels = 1;
     createInfo.arrayLayers = 1;
-    createInfo.format = m_depthImageFormat;
+    createInfo.format = depthImageFormat;
     createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     createInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
@@ -389,7 +389,7 @@ void RenderSwapchain::createDepthResources() {
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image = m_depthImage;
     viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    viewInfo.format = m_depthImageFormat;
+    viewInfo.format = depthImageFormat;
     viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.layerCount = 1;

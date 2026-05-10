@@ -86,6 +86,8 @@
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="RenderGraph.cpp" />
+    <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="ShaderLayout.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="TestbedScene.cpp" />
     <ClCompile Include="Transform.cpp" />
@@ -96,6 +98,8 @@
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="RenderGraph.h" />
+    <ClInclude Include="Shader.h" />
+    <ClInclude Include="ShaderLayout.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="TestbedScene.h" />
     <ClInclude Include="Transform.h" />

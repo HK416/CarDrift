@@ -55,7 +55,6 @@ public:
     ~RenderSwapchain();
 
     VkSwapchainKHR getSwapchain() const { return m_swapchain; }
-    VkFormat getFormat() const { return m_swapchainImageFormat; }
     VkExtent2D getExtent() const { return m_swapchainExtent; }
     const std::vector<VkImage>& getImages() const { return m_swapchainImages; }
     const std::vector<VkImageView>& getImageViews() const { return m_swapchainImageViews; }
@@ -76,12 +75,14 @@ private:
     VkExtent2D m_swapchainExtent;
     std::vector<VkImage> m_swapchainImages;
     std::vector<VkImageView> m_swapchainImageViews;
-    const VkFormat m_swapchainImageFormat = VK_FORMAT_B8G8R8A8_UNORM;
 
     VkImage m_depthImage = VK_NULL_HANDLE;
     VmaAllocation m_depthImageAllocation = VK_NULL_HANDLE;
     VkImageView m_depthImageView = VK_NULL_HANDLE;
-    const VkFormat m_depthImageFormat = VK_FORMAT_D32_SFLOAT;
+
+public:
+    static const VkFormat swapchainImageFormat = VK_FORMAT_B8G8R8A8_UNORM;
+    static const VkFormat depthImageFormat = VK_FORMAT_D32_SFLOAT;
 };
 
 class CommandManager {
