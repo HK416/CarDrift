@@ -1,0 +1,157 @@
+#include "stdafx.h"
+#include "Material.h"
+#include "Shader.h"
+#include "ShaderLayout.h"
+#include "Renderer.h"
+#include "Texture.h"
+
+Material::Material(RenderContext* context, std::shared_ptr<Shader> shader) 
+    : m_context(context), m_shader(shader) {
+    auto layouts = m_shader->getLayout()->getDescriptorSetLayout();
+    if (layouts.size() > 1) {
+        m_descriptorSet = m_context->allocateDescriptorSet(layouts[1]);
+    }
+}
+
+void Material::bind(VkCommandBuffer cmd) {
+    if (m_descriptorSet != VK_NULL_HANDLE) {
+        VkPipelineLayout layout = m_shader->getLayout()->getPipelineLayout();
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 1, 1, &m_descriptorSet, 0, nullptr);
+    }
+}
+
+StandardMaterial::StandardMaterial(RenderContext* context, std::shared_ptr<Shader> shader) 
+    : Material(context, shader) {
+    VkBufferCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    createInfo.size = sizeof(PBRMaterialParams);
+    createInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+
+    VmaAllocationCreateInfo allocInfo = {};
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+
+    if (vmaCreateBuffer(m_context->getAllocator(), &createInfo, &allocInfo, &m_uniformBuffer, &m_allocation, nullptr) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create standard material uniform buffer!");
+    }
+}
+
+StandardMaterial::~StandardMaterial() {
+    if (m_uniformBuffer != VK_NULL_HANDLE) {
+        vmaDestroyBuffer(m_context->getAllocator(), m_uniformBuffer, m_allocation);
+    }
+}
+
+StandardMaterial& StandardMaterial::setAlbedo(const glm::vec4& color) {
+    m_params.albedoFactor = color;
+    m_dirty = true;
+    return *this;
+}
+
+StandardMaterial& StandardMaterial::setMetallic(float m) {
+    m_params.metallicFactor = m;
+    m_dirty = true;
+    return *this;
+}
+
+StandardMaterial& StandardMaterial::setRoughness(float r) {
+    m_params.roughnessFactor = r;
+    m_dirty = true;
+    return *this;
+}
+
+StandardMaterial& StandardMaterial::setAlbedoMap(std::shared_ptr<Texture> tex) {
+    m_albedoMap = tex;
+    m_dirty = true;
+    return *this;
+}
+
+StandardMaterial& StandardMaterial::setNormalMap(std::shared_ptr<Texture> tex) {
+    m_normalMap = tex;
+    m_dirty = true;
+    return *this;
+}
+
+StandardMaterial& StandardMaterial::setMetallicRoughnessMap(std::shared_ptr<Texture> tex) {
+    m_mrMap = tex;
+    m_dirty = true;
+    return *this;
+}
+
+void StandardMaterial::bind(VkCommandBuffer cmd) {
+    if (m_dirty) {
+        updateDescriptorSet();
+        m_dirty = false;
+    }
+
+    Material::bind(cmd);
+}
+
+void StandardMaterial::updateDescriptorSet() {
+    void* data;
+    vmaMapMemory(m_context->getAllocator(), m_allocation, &data);
+    memcpy(data, &m_params, sizeof(PBRMaterialParams));
+    vmaUnmapMemory(m_context->getAllocator(), m_allocation);
+
+    std::vector<VkWriteDescriptorSet> writes(4);
+
+    // Binding 0: Uniform Buffer
+    VkDescriptorBufferInfo bufferInfo = {};
+    bufferInfo.buffer = m_uniformBuffer;
+    bufferInfo.offset = 0;
+    bufferInfo.range = sizeof(PBRMaterialParams);
+    
+    writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writes[0].dstSet = m_descriptorSet;
+    writes[0].dstBinding = 0;
+    writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    writes[0].descriptorCount = 1;
+    writes[0].pBufferInfo = &bufferInfo;
+    
+    // Binding 1: Albedo Map
+    VkDescriptorImageInfo albedoImageInfo = {};
+    albedoImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    albedoImageInfo.imageView = m_albedoMap->getImageView();
+    albedoImageInfo.sampler = m_albedoMap->getSampler();
+
+    writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writes[1].dstSet = m_descriptorSet;
+    writes[1].dstBinding = 1;
+    writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    writes[1].descriptorCount = 1;
+    writes[1].pImageInfo = &albedoImageInfo;
+    
+    // Binding 2: Normal Map
+    VkDescriptorImageInfo normalImageInfo = {};
+    normalImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    normalImageInfo.imageView = m_normalMap->getImageView();
+    normalImageInfo.sampler = m_normalMap->getSampler();
+
+    writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writes[2].dstSet = m_descriptorSet;
+    writes[2].dstBinding = 2;
+    writes[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    writes[2].descriptorCount = 1;
+    writes[2].pImageInfo = &normalImageInfo;
+
+    // Binding 3: Metallic Roughness Map
+    VkDescriptorImageInfo mrImageInfo = {};
+    mrImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    mrImageInfo.imageView = m_mrMap->getImageView();
+    mrImageInfo.sampler = m_mrMap->getSampler();
+
+    writes[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writes[3].dstSet = m_descriptorSet;
+    writes[3].dstBinding = 3;
+    writes[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    writes[3].descriptorCount = 1;
+    writes[3].pImageInfo = &mrImageInfo;
+
+    vkUpdateDescriptorSets(
+        m_context->getDevice(),
+        static_cast<uint32_t>(writes.size()),
+        writes.data(),
+        0,
+        nullptr
+    );
+}

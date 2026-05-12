@@ -15,6 +15,10 @@ public:
     uint32_t getGraphicsQueueFamilyIndex() const { return m_graphicsQueueFamilyIndex; }
     VkQueue getGraphicsQueue() const { return m_graphicsQueue; }
     VmaAllocator getAllocator() const { return m_allocator; }
+    VkDescriptorPool getEngineDescriptorPool() const { return m_descriptorPool; }
+    VkDescriptorPool getGuiDescriptorPool() const { return m_guiDescriptorPool; }
+
+    VkDescriptorSet allocateDescriptorSet(VkDescriptorSetLayout layout);
 
 private:
     void createRenderInstance();
@@ -22,6 +26,7 @@ private:
     void createRenderSurface(GLFWwindow* window);
     void createRenderDevice();
     void createMemoryAllocator();
+    void createDescriptorPools();
 
     bool checkValidationLayerSupport();
     std::vector<const char*> getRequiredExtensions();
@@ -36,6 +41,9 @@ private:
     VkQueue m_graphicsQueue = VK_NULL_HANDLE;
 
     VmaAllocator m_allocator = VK_NULL_HANDLE;
+
+    VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
+    VkDescriptorPool m_guiDescriptorPool = VK_NULL_HANDLE;
 
 #ifdef NDEBUG
     const bool m_enableValidationLayers = false;

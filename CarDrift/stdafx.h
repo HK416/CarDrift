@@ -24,6 +24,8 @@
 #include <spdlog/cfg/env.h>
 #include <spdlog/fmt/ostr.h>
 
+#include <stb_image.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <exception>
