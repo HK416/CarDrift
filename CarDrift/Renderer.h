@@ -1,6 +1,8 @@
 #pragma once
 #include "GameScene.h"
 
+class Texture;
+
 class RenderContext {
 public:
     RenderContext() = delete;
@@ -20,6 +22,11 @@ public:
     VkDescriptorPool getGuiDescriptorPool() const { return m_guiDescriptorPool; }
 
     VkDescriptorSet allocateDescriptorSet(VkDescriptorSetLayout layout);
+
+    void createDefaultTextures(VkCommandBuffer cmd);
+    Texture* getWhiteTexture() const { return m_whiteTexture.get(); }
+    Texture* getFlatNormalTexture() const { return m_normalTexture.get(); }
+    Texture* getBlackTexture() const { return m_blackTexture.get(); }
 
 private:
     void createRenderInstance();
@@ -54,6 +61,10 @@ private:
     const std::vector<const char*> m_validationLayers = {
         "VK_LAYER_KHRONOS_validation"
     };
+
+    std::unique_ptr<Texture> m_whiteTexture;
+    std::unique_ptr<Texture> m_normalTexture;
+    std::unique_ptr<Texture> m_blackTexture;
 };
 
 class RenderSwapchain {

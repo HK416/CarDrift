@@ -27,11 +27,11 @@ public:
     Shader() = delete;
     Shader(const Shader&) = delete;
     Shader& operator=(const Shader&) = delete;
-    Shader(RenderContext* context, std::shared_ptr<ShaderLayout> layout);
+    Shader(RenderContext* context, ShaderLayout* layout);
     virtual ~Shader();
 
     VkPipeline getPipeline() const { return m_pipeline; }
-    std::shared_ptr<ShaderLayout> getLayout() const { return m_layout; }
+    ShaderLayout* getLayout() const { return m_layout; }
 
     virtual void bind(VkCommandBuffer cmd) = 0;
 
@@ -45,8 +45,8 @@ protected:
 
 protected:
     RenderContext* m_context; // 소유하지 않는 클래스 맴버
+    ShaderLayout* m_layout;   // 소유하지 않는 클래스 맴버 (장면이 관리함)
 
-    std::shared_ptr<ShaderLayout> m_layout;
     VkPipeline m_pipeline = VK_NULL_HANDLE;
 };
 
@@ -55,9 +55,7 @@ public:
     StandardOpaqueShader() = delete;
     StandardOpaqueShader(const StandardOpaqueShader&) = delete;
     StandardOpaqueShader& operator=(const StandardOpaqueShader) = delete;
-    StandardOpaqueShader(
-        RenderContext* context, std::shared_ptr<ShaderLayout> layout
-    );
+    StandardOpaqueShader(RenderContext* context, ShaderLayout* layout);
 
     virtual void bind(VkCommandBuffer cmd) override;
 };

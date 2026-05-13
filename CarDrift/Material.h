@@ -9,19 +9,19 @@ public:
     Material() = delete;
     Material(const Material&) = delete;
     Material& operator=(const Material&) = delete;
-    Material(RenderContext* context, std::shared_ptr<Shader> shader);
+    Material(RenderContext* context, Shader* shader);
     virtual ~Material() = default;
 
     virtual void bind(VkCommandBuffer cmd);
 
-    std::shared_ptr<Shader> getShader() const { return m_shader; }
+    Shader* getShader() const { return m_shader; }
 
 protected:
     virtual void updateDescriptorSet() = 0;
 
 protected:
     RenderContext* m_context; // 소유하지 않는 클래스 맴버
-    std::shared_ptr<Shader> m_shader;
+    Shader* m_shader;         // 소유하지 않는 클래스 맴버 (장면이 관리함)
     VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
 };
 
@@ -30,16 +30,16 @@ public:
     StandardMaterial() = delete;
     StandardMaterial(const StandardMaterial&) = delete;
     StandardMaterial& operator=(const StandardMaterial&) = delete;
-    StandardMaterial(RenderContext* context, std::shared_ptr<Shader> shader);
+    StandardMaterial(RenderContext* context, Shader* shader);
     virtual ~StandardMaterial();
 
     StandardMaterial& setAlbedo(const glm::vec4& color);
     StandardMaterial& setMetallic(float m);
     StandardMaterial& setRoughness(float r);
 
-    StandardMaterial& setAlbedoMap(std::shared_ptr<Texture> tex);
-    StandardMaterial& setNormalMap(std::shared_ptr<Texture> tex);
-    StandardMaterial& setMetallicRoughnessMap(std::shared_ptr<Texture> tex);
+    StandardMaterial& setAlbedoMap(Texture* tex);
+    StandardMaterial& setNormalMap(Texture* tex);
+    StandardMaterial& setMetallicRoughnessMap(Texture* tex);
 
     virtual void bind(VkCommandBuffer cmd) override;
 
@@ -57,9 +57,9 @@ private:
 
     PBRMaterialParams m_params;
 
-    std::shared_ptr<Texture> m_albedoMap;
-    std::shared_ptr<Texture> m_normalMap;
-    std::shared_ptr<Texture> m_mrMap;
+    Texture* m_albedoMap; // 소유하지 않는 클래스 맴버 (장면 또는 엔진이 관리함)
+    Texture* m_normalMap; // 소유하지 않는 클래스 맴버 (장면 또는 엔진이 관리함)
+    Texture* m_mrMap;     // 소유하지 않는 클래스 맴버 (장면 또는 엔진이 관리함)
 
     VkBuffer m_uniformBuffer = VK_NULL_HANDLE;
     VmaAllocation m_allocation = VK_NULL_HANDLE;

@@ -80,7 +80,7 @@ RenderPipelineStates::RenderPipelineStates(bool skinned) {
     colorBlend.pAttachments = &colorBlendAttachment;
 }
 
-Shader::Shader(RenderContext* context, std::shared_ptr<ShaderLayout> layout)
+Shader::Shader(RenderContext* context, ShaderLayout* layout)
     : m_context(context), m_layout(layout) {}
 
 Shader::~Shader() {
@@ -170,9 +170,8 @@ void Shader::setupRenderPipeline(
     }
 }
 
-StandardOpaqueShader::StandardOpaqueShader(
-    RenderContext* context, std::shared_ptr<ShaderLayout> layout
-) : Shader(context, layout) {
+StandardOpaqueShader::StandardOpaqueShader(RenderContext* context, ShaderLayout* layout) 
+    : Shader(context, layout) {
     auto vertCode = readSPIRVFile("shaders/standard.vert.spv");
     auto fragCode = readSPIRVFile("shaders/standard.frag.spv");
 

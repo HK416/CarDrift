@@ -6,8 +6,12 @@ class MeshBuilder;
 enum class VertexAttribute : uint32_t {
     Position = 0,
     Normal = 1,
-    Uv0 = 2,
-    Color = 3,
+    Tangent = 2,
+    Uv0 = 3,
+    Uv1 = 4,
+    Color = 5,
+    JointIndex = 6,
+    JointWeight = 7,
     Count
 };
 
@@ -52,8 +56,12 @@ class MeshBuilder {
 public:
     MeshBuilder& setPosition(const std::vector<glm::vec3>& pos);
     MeshBuilder& setNormals(const std::vector<glm::vec3>& norm);
+    MeshBuilder& setTangents(const std::vector<glm::vec4>& tan);
     MeshBuilder& setTexcoord0(const std::vector<glm::vec2>& uvs);
+    MeshBuilder& setTexcoord1(const std::vector<glm::vec2>& uvs);
     MeshBuilder& setColors(const std::vector<glm::vec4>& colors);
+    MeshBuilder& setJointIndices(const std::vector<glm::ivec4>& indices);
+    MeshBuilder& setJointWeights(const std::vector<glm::vec4>& weights);
 
     MeshBuilder& setIndices(const std::vector<uint32_t>& indices);
     MeshBuilder& addSubMesh(uint32_t start, uint32_t count);
@@ -81,8 +89,12 @@ private:
 private:
     std::vector<glm::vec3> m_position;
     std::vector<glm::vec3> m_normals;
+    std::vector<glm::vec4> m_tangents;
     std::vector<glm::vec2> m_texcoords0;
+    std::vector<glm::vec2> m_texcoords1;
     std::vector<glm::vec4> m_colors;
+    std::vector<glm::ivec4> m_jointIndices;
+    std::vector<glm::vec4> m_jointWeights;
 
     std::vector<uint32_t> m_indices;
     std::vector<SubMesh> m_subMeshes;

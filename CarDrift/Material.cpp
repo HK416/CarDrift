@@ -5,7 +5,7 @@
 #include "Renderer.h"
 #include "Texture.h"
 
-Material::Material(RenderContext* context, std::shared_ptr<Shader> shader) 
+Material::Material(RenderContext* context, Shader* shader) 
     : m_context(context), m_shader(shader) {
     auto layouts = m_shader->getLayout()->getDescriptorSetLayout();
     if (layouts.size() > 1) {
@@ -20,8 +20,11 @@ void Material::bind(VkCommandBuffer cmd) {
     }
 }
 
-StandardMaterial::StandardMaterial(RenderContext* context, std::shared_ptr<Shader> shader) 
-    : Material(context, shader) {
+StandardMaterial::StandardMaterial(RenderContext* context, Shader* shader)
+    : Material(context, shader), 
+      m_albedoMap(context->getWhiteTexture()),
+      m_normalMap(context->getFlatNormalTexture()),
+      m_mrMap(context->getBlackTexture()) {
     VkBufferCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     createInfo.size = sizeof(PBRMaterialParams);
@@ -60,20 +63,20 @@ StandardMaterial& StandardMaterial::setRoughness(float r) {
     return *this;
 }
 
-StandardMaterial& StandardMaterial::setAlbedoMap(std::shared_ptr<Texture> tex) {
-    m_albedoMap = tex;
+StandardMaterial& StandardMaterial::setAlbedoMap(Texture* tex) {
+    m_albedoMap = tex ? tex : m_context->getWhiteTexture();
     m_dirty = true;
     return *this;
 }
 
-StandardMaterial& StandardMaterial::setNormalMap(std::shared_ptr<Texture> tex) {
-    m_normalMap = tex;
+StandardMaterial& StandardMaterial::setNormalMap(Texture* tex) {
+    m_normalMap = tex ? tex : m_context->getFlatNormalTexture();
     m_dirty = true;
     return *this;
 }
 
-StandardMaterial& StandardMaterial::setMetallicRoughnessMap(std::shared_ptr<Texture> tex) {
-    m_mrMap = tex;
+StandardMaterial& StandardMaterial::setMetallicRoughnessMap(Texture* tex) {
+    m_mrMap = tex ? tex : m_context->getBlackTexture();
     m_dirty = true;
     return *this;
 }

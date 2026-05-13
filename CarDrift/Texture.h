@@ -1,6 +1,7 @@
 #pragma once
 
 class RenderContext;
+class PlainTextureBuilder;
 class CommonTextureBuilder;
 
 struct SubresourceData {
@@ -21,6 +22,7 @@ struct TextureResourceData {
 };
 
 class Texture {
+    friend class PlainTextureBuilder;
     friend class CommonTextureBuilder;
 
 public:
@@ -67,6 +69,17 @@ private:
     };
 
     std::vector<BufferResource> m_stagingResources;
+};
+
+class PlainTextureBuilder {
+public:
+    PlainTextureBuilder& setColor(uint32_t rawColor, bool srgb = true);
+
+    std::unique_ptr<Texture> build(RenderContext* context, VkCommandBuffer cmd);
+
+private:
+    uint32_t m_rawColor = 0xFFFFFFFF;
+    bool m_isSRGB = true;
 };
 
 class CommonTextureBuilder {

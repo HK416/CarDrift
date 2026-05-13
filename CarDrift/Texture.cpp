@@ -218,14 +218,40 @@ void Texture::createSampler(
     createInfo.minFilter = min;
     createInfo.addressModeU = u;
     createInfo.addressModeV = v;
-    createInfo.anisotropyEnable = VK_TRUE;
-    createInfo.maxAnisotropy = 16.0f;
     createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
     createInfo.maxLod = mipLevels > 1 ? static_cast<float>(mipLevels) : 0;
 
     if (vkCreateSampler(m_context->getDevice(), &createInfo, nullptr, &m_sampler) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create image sampler!");
     }
+}
+
+PlainTextureBuilder& PlainTextureBuilder::setColor(uint32_t rawColor, bool srgb) {
+    m_rawColor = rawColor;
+    m_isSRGB = srgb;
+    return *this;
+}
+
+std::unique_ptr<Texture> PlainTextureBuilder::build(RenderContext* context, VkCommandBuffer cmd) {
+    auto texture = std::make_unique<Texture>(context);
+    TextureResourceData resData;
+    resData.width = 1;
+    resData.height = 1;
+    resData.format = m_isSRGB ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
+    resData.pixelData.resize(4);
+    memcpy(resData.pixelData.data(), &m_rawColor, 4);
+
+    texture->upload(cmd, resData);
+    texture->createImageView(1, 1);
+    texture->createSampler(
+        1,
+        VK_FILTER_NEAREST,
+        VK_FILTER_NEAREST,
+        VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        VK_SAMPLER_ADDRESS_MODE_REPEAT
+    );
+
+    return texture;
 }
 
 CommonTextureBuilder& CommonTextureBuilder::setFile(

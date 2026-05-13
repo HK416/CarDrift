@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "Renderer.h"
+#include "Texture.h"
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -57,6 +58,10 @@ RenderContext::RenderContext(GLFWwindow* window) {
 }
 
 RenderContext::~RenderContext() {
+    m_whiteTexture.reset();
+    m_normalTexture.reset();
+    m_blackTexture.reset();
+
     if (m_descriptorPool != VK_NULL_HANDLE) {
         vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
     }
@@ -311,6 +316,12 @@ void RenderContext::createDescriptorPools() {
     }
 }
 
+void RenderContext::createDefaultTextures(VkCommandBuffer cmd) {
+    m_whiteTexture = PlainTextureBuilder().setColor(0xFFFFFFFF, true).build(this, cmd);
+    m_normalTexture = PlainTextureBuilder().setColor(0xFFFF8080, false).build(this, cmd);
+    m_blackTexture = PlainTextureBuilder().setColor(0xFF000000, false).build(this, cmd);
+}
+
 bool RenderContext::checkValidationLayerSupport() {
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -540,6 +551,11 @@ Renderer::Renderer(GLFWwindow* window) : m_window(window) {
     m_context = std::make_unique<RenderContext>(m_window);
     m_swapchain = std::make_unique<RenderSwapchain>(m_context.get(), m_window);
     m_commandManager = std::make_unique<CommandManager>(m_context.get(), m_swapchain->getImageViews().size());
+
+    VkCommandBuffer cmd = m_commandManager->beginSingleTimeCommands();
+    m_context->createDefaultTextures(cmd);
+    m_commandManager->endSingleTimeCommands(cmd, m_context->getGraphicsQueue());
+    vkQueueWaitIdle(m_context->getGraphicsQueue());
 
     m_sceneManager = std::make_unique<SceneManager>(m_context.get());
 

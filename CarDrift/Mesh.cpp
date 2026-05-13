@@ -43,13 +43,33 @@ MeshBuilder& MeshBuilder::setNormals(const std::vector<glm::vec3>& norm) {
     return *this;
 }
 
+MeshBuilder& MeshBuilder::setTangents(const std::vector<glm::vec4>& tan) {
+    m_tangents = tan;
+    return *this;
+}
+
 MeshBuilder& MeshBuilder::setTexcoord0(const std::vector<glm::vec2>& uvs) {
     m_texcoords0 = uvs;
     return *this;
 }
 
+MeshBuilder& MeshBuilder::setTexcoord1(const std::vector<glm::vec2>& uvs) {
+    m_texcoords1 = uvs;
+    return *this;
+}
+
 MeshBuilder& MeshBuilder::setColors(const std::vector<glm::vec4>& colors) {
     m_colors = colors;
+    return *this;
+}
+
+MeshBuilder& MeshBuilder::setJointIndices(const std::vector<glm::ivec4>& indices) {
+    m_jointIndices = indices;
+    return *this;
+}
+
+MeshBuilder& MeshBuilder::setJointWeights(const std::vector<glm::vec4>& weights) {
+    m_jointWeights = weights;
     return *this;
 }
 
@@ -90,6 +110,18 @@ std::unique_ptr<Mesh> MeshBuilder::build(RenderContext* context, VkCommandBuffer
         );
     }
 
+    // Attribute Tangent
+    if (!m_tangents.empty()) {
+        upload(
+            context,
+            cmd,
+            mesh.get(),
+            VertexAttribute::Tangent,
+            m_tangents.data(),
+            m_tangents.size() * sizeof(glm::vec4)
+        );
+    }
+
     // Attribute Texcoords0
     if (!m_texcoords0.empty()) {
         upload(
@@ -102,6 +134,18 @@ std::unique_ptr<Mesh> MeshBuilder::build(RenderContext* context, VkCommandBuffer
         );
     }
 
+    // Attribute Texcoords1
+    if (!m_texcoords1.empty()) {
+        upload(
+            context,
+            cmd,
+            mesh.get(),
+            VertexAttribute::Uv1,
+            m_texcoords1.data(),
+            m_texcoords1.size() * sizeof(glm::vec2)
+        );
+    }
+
     // Attribute Color
     if (!m_colors.empty()) {
         upload(
@@ -111,6 +155,30 @@ std::unique_ptr<Mesh> MeshBuilder::build(RenderContext* context, VkCommandBuffer
             VertexAttribute::Color,
             m_colors.data(),
             m_colors.size() * sizeof(glm::vec4)
+        );
+    }
+
+    // Attribute Joint Index
+    if (!m_jointIndices.empty()) {
+        upload(
+            context,
+            cmd,
+            mesh.get(),
+            VertexAttribute::JointIndex,
+            m_jointIndices.data(),
+            m_jointIndices.size() * sizeof(glm::ivec4)
+        );
+    }
+
+    // Attribute Joint Weight
+    if (!m_jointWeights.empty()) {
+        upload(
+            context,
+            cmd,
+            mesh.get(),
+            VertexAttribute::JointWeight,
+            m_jointWeights.data(),
+            m_jointWeights.size() * sizeof(glm::vec4)
         );
     }
 
