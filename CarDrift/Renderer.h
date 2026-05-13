@@ -5,6 +5,7 @@ class RenderContext {
 public:
     RenderContext() = delete;
     RenderContext(const RenderContext&) = delete;
+    RenderContext& operator=(const RenderContext&) = delete;
     RenderContext(GLFWwindow* window);
     ~RenderContext();
 
@@ -59,6 +60,7 @@ class RenderSwapchain {
 public:
     RenderSwapchain() = delete;
     RenderSwapchain(const RenderSwapchain&) = delete;
+    RenderSwapchain& operator=(const RenderSwapchain&) = delete;
     RenderSwapchain(RenderContext* context, GLFWwindow* window);
     ~RenderSwapchain();
 
@@ -97,6 +99,7 @@ class CommandManager {
 public:
     CommandManager() = delete;
     CommandManager(const CommandManager&) = delete;
+    CommandManager& operator=(const CommandManager&) = delete;
     CommandManager(RenderContext* context, size_t swapchainImageCount);
     ~CommandManager();
 
@@ -120,6 +123,9 @@ private:
 
 class Renderer {
 public:
+    Renderer() = delete;
+    Renderer(const Renderer&) = delete;
+    Renderer& operator=(const Renderer&) = delete;
     Renderer(GLFWwindow* window);
     ~Renderer();
 

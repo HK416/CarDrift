@@ -8,6 +8,7 @@ class Material {
 public:
     Material() = delete;
     Material(const Material&) = delete;
+    Material& operator=(const Material&) = delete;
     Material(RenderContext* context, std::shared_ptr<Shader> shader);
     virtual ~Material() = default;
 
@@ -28,6 +29,7 @@ class StandardMaterial : public Material {
 public:
     StandardMaterial() = delete;
     StandardMaterial(const StandardMaterial&) = delete;
+    StandardMaterial& operator=(const StandardMaterial&) = delete;
     StandardMaterial(RenderContext* context, std::shared_ptr<Shader> shader);
     virtual ~StandardMaterial();
 

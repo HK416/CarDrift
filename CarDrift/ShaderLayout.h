@@ -9,6 +9,7 @@ class ShaderLayout {
 public:
     ShaderLayout() = delete;
     ShaderLayout(const ShaderLayout&) = delete;
+    ShaderLayout& operator=(const ShaderLayout&) = delete;
     ShaderLayout(RenderContext* context);
     ~ShaderLayout();
 

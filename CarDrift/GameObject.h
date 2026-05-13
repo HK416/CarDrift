@@ -6,6 +6,7 @@ class GameObject {
 public:
     GameObject() = default;
     GameObject(const GameObject&) = delete;
+    GameObject& operator=(const GameObject&) = delete;
     virtual ~GameObject();
 
     Transform& getTransform() { return m_transform; }

@@ -26,6 +26,7 @@ class Texture {
 public:
     Texture() = delete;
     Texture(const Texture&) = delete;
+    Texture& operator=(const Texture&) = delete;
     Texture(RenderContext* context);
     ~Texture();
 

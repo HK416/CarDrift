@@ -26,6 +26,7 @@ class Shader {
 public:
     Shader() = delete;
     Shader(const Shader&) = delete;
+    Shader& operator=(const Shader&) = delete;
     Shader(RenderContext* context, std::shared_ptr<ShaderLayout> layout);
     virtual ~Shader();
 
@@ -53,6 +54,7 @@ class StandardOpaqueShader : public Shader {
 public:
     StandardOpaqueShader() = delete;
     StandardOpaqueShader(const StandardOpaqueShader&) = delete;
+    StandardOpaqueShader& operator=(const StandardOpaqueShader) = delete;
     StandardOpaqueShader(
         RenderContext* context, std::shared_ptr<ShaderLayout> layout
     );

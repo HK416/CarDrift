@@ -22,6 +22,7 @@ class Mesh {
 public:
     Mesh() = delete;
     Mesh(const Mesh&) = delete;
+    Mesh& operator=(const Mesh&) = delete;
     Mesh(RenderContext* context);
     ~Mesh();
 
@@ -49,8 +50,6 @@ private:
 
 class MeshBuilder {
 public:
-    MeshBuilder() = default;
-
     MeshBuilder& setPosition(const std::vector<glm::vec3>& pos);
     MeshBuilder& setNormals(const std::vector<glm::vec3>& norm);
     MeshBuilder& setTexcoord0(const std::vector<glm::vec2>& uvs);

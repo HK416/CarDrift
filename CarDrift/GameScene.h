@@ -19,6 +19,7 @@ class GameScene {
 public:
     GameScene() = delete;
     GameScene(const GameScene&) = delete;
+    GameScene& operator=(const GameScene&) = delete;
     GameScene(RenderContext* context, SceneManager* manager);
     virtual ~GameScene() = default;
 
@@ -60,6 +61,7 @@ public:
 public:
     SceneManager() = delete;
     SceneManager(const SceneManager&) = delete;
+    SceneManager& operator=(const SceneManager&) = delete;
     SceneManager(RenderContext* context);
     ~SceneManager();
 

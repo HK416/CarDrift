@@ -97,6 +97,8 @@ VkDescriptorSet RenderContext::allocateDescriptorSet(VkDescriptorSetLayout layou
     if (vkAllocateDescriptorSets(m_device, &allocInfo, &descriptorSet) != VK_SUCCESS) {
         throw std::runtime_error("Failed to allocate engine descriptor set!");
     }
+
+    return descriptorSet;
 }
 
 void RenderContext::createRenderInstance() {
