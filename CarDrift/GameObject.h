@@ -24,8 +24,7 @@ public:
 
 protected:
     void setWorldDirty();
-    void updateWorldMatrix();
-
+    virtual void updateWorldMatrix();
     virtual void onUpdate(float elapsedTimeSec) {}
 
 protected:

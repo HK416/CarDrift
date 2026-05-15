@@ -6,6 +6,7 @@
 #include "Material.h"
 #include "Renderer.h"
 #include "Texture.h"
+#include "GameCamera.h"
 
 class MeshObject : public GameObject {
 public:
@@ -38,6 +39,20 @@ void TestbedScene::onEnter() {
     CommandManager* commandMgr = m_renderer->getCommandManager();
     VkCommandBuffer cmd = commandMgr->beginSingleTimeCommands();
 
+    auto camera = std::make_unique<PerspectiveCamera>();
+    camera->getTransform().setPosition({0.0f, 2.0f, -5.0f});
+    
+    glm::mat4 lookAt = glm::lookAt(
+        glm::vec3(0.0f, 2.0f, -5.0f),
+        glm::vec3(0.0f, 0.0f, 0.5f),
+        glm::vec3(0.0f, 1.0f, 0.0f)
+    );
+    camera->getTransform().setRotation(glm::quat_cast(glm::inverse(lookAt)));
+
+    m_mainCamera = camera.get();
+    m_rootObjects.push_back(camera.get());
+    m_allObjects.push_back(std::move(camera));
+
     ShaderLayoutBuilder builder;
     builder.addDescriptorSetLayout(context->getGlobalDescriptorSetLayout());
     builder.addDescriptorSetLayout({
@@ -49,7 +64,6 @@ void TestbedScene::onEnter() {
     builder.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4));
     m_shaderLayouts["Standard"] = builder.build(context);
     m_shaders["Standard"] = std::make_unique<StandardOpaqueShader>(context, m_shaderLayouts["Standard"].get());
-
 
     createCubeMesh(cmd);
     
@@ -77,23 +91,20 @@ void TestbedScene::update(float elapsedTimeSec) {
     
     for (size_t i = 0; i < m_rootObjects.size(); ++i) {
         auto* obj = m_rootObjects[i];
-        // 각 큐브마다 약간씩 다른 회전 애니메이션 적용
-        obj->getTransform().setRotation(
-            {totalTime * 50.0f + (float)i * 10.0f, totalTime * 30.0f, 0.0f}
-        );
+        if (obj != m_mainCamera) {
+            // 각 큐브마다 약간씩 다른 회전 애니메이션 적용
+            obj->getTransform().setRotation(
+                {totalTime * 50.0f + (float)i * 10.0f, totalTime * 30.0f, 0.0f}
+            );
+        }
         obj->update(elapsedTimeSec);
     }
 }
 
 void TestbedScene::render(RenderQueue& queue, float alpha) {
-    glm::mat4 view = glm::lookAt(
-        glm::vec3({0.0f, 2.0f, -5.0f}),
-        glm::vec3({0.0f, 0.0f, 0.5f}),
-        glm::vec3({0.0f, 1.0f, 0.0f})
-    );
-    glm::mat4 proj = glm::perspective(glm::radians(45.0f), 1280.0f / 720.0f, 0.1f, 100.0f);
-    proj[1][1] *= -1.0f;
-    queue.setCamera(view, proj, glm::vec3(0.0f, 2.0f, -5.0f));
+    if (m_mainCamera) {
+        m_mainCamera->applyToQueue(queue);
+    }
 
     Light dirLight;
     dirLight.lightType = (uint32_t)LightType::Directional;
