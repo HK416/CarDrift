@@ -3,7 +3,7 @@
 class Transform {
 private:
     glm::vec3 m_position{0.0f};
-    glm::vec3 m_rotation{0.0f}; // 오일러 각도(Degree)
+    glm::quat m_rotation{1.0f, 0.0f, 0.0f, 0.0f};
     glm::vec3 m_scale{1.0f};
 
     mutable glm::mat4 m_localMatrix{1.0f};
@@ -11,12 +11,17 @@ private:
 
 public:
     void setPosition(const glm::vec3& pos);
-    void setRotation(const glm::vec3& rot);
+    void setRotation(const glm::quat& rot);
+    void setRotation(const glm::vec3& eulerDegrees);
     void setScale(const glm::vec3& scale);
 
+    void rotate(const glm::quat& rot);
+    void rotate(const glm::vec3& eulerDegrees);
+
     const glm::vec3& getPosition() const { return m_position; }
-    const glm::vec3& getRotation() const { return m_rotation; }
+    const glm::quat& getRotation() const { return m_rotation; }
     const glm::vec3& getScale() const { return m_scale; }
+    glm::vec3 getEulerAngles() const;
 
     const glm::mat4& getLocalMatrix() const;
 
