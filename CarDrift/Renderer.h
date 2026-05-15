@@ -1,5 +1,6 @@
 #pragma once
 #include "GameScene.h"
+#include "RenderGraph.h"
 
 class Texture;
 
@@ -21,6 +22,8 @@ public:
     VkDescriptorPool getEngineDescriptorPool() const { return m_descriptorPool; }
     VkDescriptorPool getGuiDescriptorPool() const { return m_guiDescriptorPool; }
 
+    VkDescriptorSetLayout getGlobalDescriptorSetLayout() const { return m_globalLayout; }
+
     VkDescriptorSet allocateDescriptorSet(VkDescriptorSetLayout layout);
 
     void createDefaultTextures(VkCommandBuffer cmd);
@@ -35,6 +38,7 @@ private:
     void createRenderDevice();
     void createMemoryAllocator();
     void createDescriptorPools();
+    void createGlobalLayout();
 
     bool checkValidationLayerSupport();
     std::vector<const char*> getRequiredExtensions();
@@ -52,6 +56,8 @@ private:
 
     VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
     VkDescriptorPool m_guiDescriptorPool = VK_NULL_HANDLE;
+
+    VkDescriptorSetLayout m_globalLayout = VK_NULL_HANDLE;
 
 #ifdef NDEBUG
     const bool m_enableValidationLayers = false;
@@ -126,8 +132,6 @@ private:
 
 private:
     VkDevice m_device = VK_NULL_HANDLE; // 소유하지 않는 클래스 맴버
-
-private:
     VkCommandPool m_commandPool = VK_NULL_HANDLE;
     std::vector<VkCommandBuffer> m_commandBuffers;
 };
@@ -145,10 +149,21 @@ public:
     void setFramebufferResized() { m_framebufferResized = true; }
 
     SceneManager* getSceneManager() const { return m_sceneManager.get(); }
+    RenderContext* getContext() const { return m_context.get(); }
+    CommandManager* getCommandManager() const { return m_commandManager.get(); }
+
+    VkDescriptorSet getGlobalDescriptorSet(uint32_t frameIndex) const;
+    void updateGlobalBuffer(uint32_t frameIndex, const GlobalData& data);
 
 private:
     void createSyncObjects();
-    void transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
+    void createGlobalResources();
+    void transitionImageLayout(
+        VkCommandBuffer commandBuffer,
+        VkImage image,
+        VkImageLayout oldLayout,
+        VkImageLayout newLayout
+    );
 
 private:
     GLFWwindow* m_window = nullptr; // 소유하지 않는 클래스 맴버
@@ -161,6 +176,13 @@ private:
     VkSemaphore m_imageAvailableSemaphore = VK_NULL_HANDLE;
     VkSemaphore m_renderFinishedSemaphore = VK_NULL_HANDLE;
     VkFence m_inFlightFence = VK_NULL_HANDLE;
+
+    struct FrameResource {
+        VkBuffer buffer;
+        VmaAllocation allocation;
+        VkDescriptorSet descriptorSet;
+    };
+    std::vector<FrameResource> m_globalResources;
 
     bool m_framebufferResized = false;
 };

@@ -1,10 +1,16 @@
 #include "stdafx.h"
 #include "GameScene.h"
+#include "RenderGraph.h"
+#include "Renderer.h"
+#include "Shader.h"
+#include "ShaderLayout.h"
+#include "Material.h"
+#include "Mesh.h"
 
-GameScene::GameScene(RenderContext* context, SceneManager* manager) 
-    : m_context(context), m_manager(manager) {}
+GameScene::GameScene(Renderer* renderer, SceneManager* manager) 
+    : m_renderer(renderer), m_manager(manager) {}
 
-SceneManager::SceneManager(RenderContext* context) : m_context(context) {}
+SceneManager::SceneManager(Renderer* renderer) : m_renderer(renderer) {}
 
 SceneManager::~SceneManager() {
     clearImmediate();
@@ -54,12 +60,16 @@ void SceneManager::update(float elapsedTimeSec) {
     }
 }
 
-void SceneManager::render(VkCommandBuffer commandBuffer, VkExtent2D extent) {
+void SceneManager::render(
+    VkCommandBuffer commandBuffer, uint32_t frameIndex, VkExtent2D extent
+) {
     if (m_sceneStack.empty()) {
         return;
     }
 
     m_currentExtent = extent;
+    RenderQueue queue;
+    queue.clear();
 
     size_t firstIndex = m_sceneStack.size() - 1;
     while (firstIndex > 0 && !m_sceneStack[firstIndex]->isOpaque()) {
@@ -73,8 +83,18 @@ void SceneManager::render(VkCommandBuffer commandBuffer, VkExtent2D extent) {
         }
 
         m_sceneStack[i]->onPreRender(commandBuffer);
-        m_sceneStack[i]->render(commandBuffer, alpha);
+        m_sceneStack[i]->render(queue, alpha);
     }
+
+    m_renderer->updateGlobalBuffer(frameIndex, queue.getGlobalData());
+
+    queue.sort();
+    executeRenderQueue(commandBuffer, frameIndex, queue);
+
+    for (size_t i = firstIndex; i < m_sceneStack.size(); ++i) {
+        m_sceneStack[i]->onPostRender(commandBuffer);
+    }
+    
 }
 
 void SceneManager::dispatchEvent(const Event& event) {
@@ -147,5 +167,54 @@ void SceneManager::clearImmediate() {
     while (!m_sceneStack.empty()) {
         m_sceneStack.back()->onExit();
         m_sceneStack.pop_back();
+    }
+}
+
+void SceneManager::executeRenderQueue(
+    VkCommandBuffer cmd, uint32_t frameIndex, RenderQueue& queue
+) {
+    const auto& opaqueItems = queue.getOpaqueItems();
+    if (!opaqueItems.empty()) {
+        Shader* lastShader = nullptr;
+        Material* lastMaterial = nullptr;
+        Mesh* lastMesh = nullptr;
+
+        VkDescriptorSet globalSet = m_renderer->getGlobalDescriptorSet(frameIndex);
+
+        for (const auto& item : opaqueItems) {
+            if (!item.mesh || !item.material) {
+                continue;
+            }
+
+            if (item.material->getShader() != lastShader) {
+                lastShader = item.material->getShader();
+                lastShader->bind(cmd);
+
+                VkPipelineLayout pipelineLayout = lastShader->getLayout()->getPipelineLayout();
+                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &globalSet, 0, nullptr);
+            }
+
+            if (item.material != lastMaterial) {
+                lastMaterial = item.material;
+                lastMaterial->bind(cmd);
+            }
+
+            if (item.mesh != lastMesh) {
+                lastMesh = item.mesh;
+                lastMesh->bindBuffers(cmd);
+            }
+
+            vkCmdPushConstants(
+                cmd,
+                lastShader->getLayout()->getPipelineLayout(),
+                VK_SHADER_STAGE_VERTEX_BIT,
+                0,
+                sizeof(glm::mat4),
+                &item.worldMatrix
+            );
+
+            const auto& submesh = item.mesh->getSubMeshes()[item.submeshIndex];
+            vkCmdDrawIndexed(cmd, submesh.indexCount, 1, submesh.indexStart, 0, 0);
+        }
     }
 }

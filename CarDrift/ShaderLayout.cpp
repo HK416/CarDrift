@@ -5,21 +5,26 @@
 ShaderLayout::ShaderLayout(RenderContext* context) : m_context(context) {}
 
 ShaderLayout::~ShaderLayout() {
-    VkDevice device = m_context->getDevice();
-
     if (m_pipelineLayout != VK_NULL_HANDLE) {
-        vkDestroyPipelineLayout(device, m_pipelineLayout, nullptr);
+        vkDestroyPipelineLayout(m_context->getDevice(), m_pipelineLayout, nullptr);
     }
 
-    for (auto layout : m_descriptorSetLayouts) {
-        vkDestroyDescriptorSetLayout(device, layout, nullptr);
+    for (size_t i = 0; i < m_descriptorSetLayouts.size(); ++i) {
+        if (m_ownedLayouts[i] && m_descriptorSetLayouts[i] != VK_NULL_HANDLE) {
+            vkDestroyDescriptorSetLayout(m_context->getDevice(), m_descriptorSetLayouts[i], nullptr);
+        }
     }
+}
+
+ShaderLayoutBuilder& ShaderLayoutBuilder::addDescriptorSetLayout(VkDescriptorSetLayout layout) {
+    m_descriptorSets.push_back({{}, layout});
+    return *this;
 }
 
 ShaderLayoutBuilder& ShaderLayoutBuilder::addDescriptorSetLayout(
     const std::vector<VkDescriptorSetLayoutBinding>& bindings
 ) {
-    m_descriptorSets.push_back({bindings});
+    m_descriptorSets.push_back({bindings, VK_NULL_HANDLE});
     return *this;
 }
 
@@ -40,17 +45,23 @@ std::unique_ptr<ShaderLayout> ShaderLayoutBuilder::build(RenderContext* context)
 
     // 1. Create Descriptor Set Layouts
     for (const auto& setInfo : m_descriptorSets) {
-        VkDescriptorSetLayoutCreateInfo createInfo = {};
-        createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        createInfo.bindingCount = static_cast<uint32_t>(setInfo.bindings.size());
-        createInfo.pBindings = setInfo.bindings.data();
+        if (setInfo.existingLayout != VK_NULL_HANDLE) {
+            shaderLayout->m_descriptorSetLayouts.push_back(setInfo.existingLayout);
+            shaderLayout->m_ownedLayouts.push_back(false);
+        } else {
+            VkDescriptorSetLayoutCreateInfo createInfo = {};
+            createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            createInfo.bindingCount = static_cast<uint32_t>(setInfo.bindings.size());
+            createInfo.pBindings = setInfo.bindings.data();
 
-        VkDescriptorSetLayout layout;
-        if (vkCreateDescriptorSetLayout(device, &createInfo, nullptr, &layout) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create descriptor set layout!");
+            VkDescriptorSetLayout layout;
+            if (vkCreateDescriptorSetLayout(device, &createInfo, nullptr, &layout) != VK_SUCCESS) {
+                throw std::runtime_error("Failed to create descriptor set layout!");
+            }
+
+            shaderLayout->m_descriptorSetLayouts.push_back(layout);
+            shaderLayout->m_ownedLayouts.push_back(true);
         }
-
-        shaderLayout->m_descriptorSetLayouts.push_back(layout);
     }
 
     // 2. Create Pipeline Layout

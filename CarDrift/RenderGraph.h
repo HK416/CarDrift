@@ -12,13 +12,25 @@ enum class LightType : uint32_t {
 };
 
 struct Light {
-    glm::vec4 position; // xyz: Position, w: LightType
-    glm::vec4 direction; // xyz: Direction, w: range
-    glm::vec4 color; // rgb: Color, w: intensity
-    glm::vec4 params; // x: spotInner, y: spotOuter, zw: padding
-    
+    float xPos = 0.0f;
+    float yPos = 0.0f;
+    float zPos = 0.0f;
+    uint32_t lightType = 0;
+
+    float xDir = 0.0f;
+    float yDir = -1.0f;
+    float zDir = 0.0f;
+    float range = 0.0f;
+
+    float red = 1.0f;
+    float green = 1.0f;
+    float blue = 1.0f;
+    float intensity = 0.0f;
+
+    float spotInner = 0.0f;
+    float spotOuter = 0.0f;
     int shadowIndex = -1; // Shadow Map Index (-1: None)
-    uint32_t _padding0[3];
+    uint32_t _padding0;
 };
 
 // --- Global Data ---

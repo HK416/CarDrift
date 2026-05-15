@@ -1,5 +1,7 @@
 #include "stdafx.h"
 #include "Renderer.h"
+#include "GameScene.h"
+#include "TestbedScene.h"
 
 const uint32_t DEF_WIDTH = 1280;
 const uint32_t DEF_HEIGHT = 720;
@@ -64,6 +66,9 @@ int main(int argc, char** argv) {
 
     try {
         auto renderer = std::make_unique<Renderer>(window);
+        SceneManager* sceneMgr = renderer->getSceneManager();
+        sceneMgr->pushScene(std::make_unique<TestbedScene>(renderer.get(), sceneMgr));
+
         glfwSetWindowUserPointer(window, renderer.get());
 
         glfwSetKeyCallback(window, handleKeyInput);

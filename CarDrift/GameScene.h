@@ -1,7 +1,9 @@
 #pragma once
 
 class SceneManager;
+class Renderer;
 class RenderContext;
+class RenderQueue;
 
 // --- Events ---
 //
@@ -20,7 +22,7 @@ public:
     GameScene() = delete;
     GameScene(const GameScene&) = delete;
     GameScene& operator=(const GameScene&) = delete;
-    GameScene(RenderContext* context, SceneManager* manager);
+    GameScene(Renderer* renderer, SceneManager* manager);
     virtual ~GameScene() = default;
 
     virtual void onEnter() {}
@@ -36,14 +38,15 @@ public:
     virtual void postUpdate(float elapsedTimeSec) {}
 
     virtual void onPreRender(VkCommandBuffer commandBuffer) {}
-    virtual void render(VkCommandBuffer commandBuffer, float alpha) = 0;
+    virtual void render(RenderQueue& queue, float alpha) = 0;
+    virtual void onPostRender(VkCommandBuffer commandBuffer) {}
 
     virtual bool isOpaque() const { return true; }
     virtual bool isPausedBehind() const { return true; }
     virtual bool shouldClearDepth() const { return false; }
 
 protected:
-    RenderContext* m_context;
+    Renderer* m_renderer;
     SceneManager* m_manager;
 };
 
@@ -62,7 +65,7 @@ public:
     SceneManager() = delete;
     SceneManager(const SceneManager&) = delete;
     SceneManager& operator=(const SceneManager&) = delete;
-    SceneManager(RenderContext* context);
+    SceneManager(Renderer* renderer);
     ~SceneManager();
 
     void pushScene(std::unique_ptr<GameScene> scene);
@@ -71,7 +74,7 @@ public:
     void clear();
 
     void update(float elapsedTimeSec);
-    void render(VkCommandBuffer commandBuffer, VkExtent2D extent);
+    void render(VkCommandBuffer commandBuffer, uint32_t frameIndex, VkExtent2D extent);
     void dispatchEvent(const Event& event);
 
     void setFixedUpdateStep(float step);
@@ -82,9 +85,10 @@ public:
 private:
     void processPendingRequests();
     void clearImmediate();
+    void executeRenderQueue(VkCommandBuffer cmd, uint32_t frameIndex, RenderQueue& queue);
 
 private:
-    RenderContext* m_context;
+    Renderer* m_renderer;
     std::vector<std::unique_ptr<GameScene>> m_sceneStack;
     std::queue<SceneRequest> m_pendingRequests;
 

@@ -58,6 +58,7 @@ RenderPipelineStates::RenderPipelineStates(bool skinned) {
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;

@@ -93,4 +93,8 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\standard.frag" />
+    <None Include="shaders\standard.vert" />
+  </ItemGroup>
 </Project>

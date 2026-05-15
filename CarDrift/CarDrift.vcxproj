@@ -108,6 +108,10 @@
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Transform.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\standard.frag" />
+    <None Include="shaders\standard.vert" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

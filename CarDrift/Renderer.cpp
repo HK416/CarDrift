@@ -55,12 +55,17 @@ RenderContext::RenderContext(GLFWwindow* window) {
     createRenderDevice();
     createMemoryAllocator();
     createDescriptorPools();
+    createGlobalLayout();
 }
 
 RenderContext::~RenderContext() {
     m_whiteTexture.reset();
     m_normalTexture.reset();
     m_blackTexture.reset();
+
+    if (m_globalLayout != VK_NULL_HANDLE) {
+        vkDestroyDescriptorSetLayout(m_device, m_globalLayout, nullptr);
+    }
 
     if (m_descriptorPool != VK_NULL_HANDLE) {
         vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr);
@@ -316,6 +321,23 @@ void RenderContext::createDescriptorPools() {
     }
 }
 
+void RenderContext::createGlobalLayout() {
+    VkDescriptorSetLayoutBinding layoutBinding = {};
+    layoutBinding.binding = 0;
+    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutBinding.descriptorCount = 1;
+    layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    VkDescriptorSetLayoutCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    createInfo.bindingCount = 1;
+    createInfo.pBindings = &layoutBinding;
+
+    if (vkCreateDescriptorSetLayout(m_device, &createInfo, nullptr, &m_globalLayout) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create global descriptor set layout!");
+    }
+}
+
 void RenderContext::createDefaultTextures(VkCommandBuffer cmd) {
     m_whiteTexture = PlainTextureBuilder().setColor(0xFFFFFFFF, true).build(this, cmd);
     m_normalTexture = PlainTextureBuilder().setColor(0xFFFF8080, false).build(this, cmd);
@@ -552,12 +574,14 @@ Renderer::Renderer(GLFWwindow* window) : m_window(window) {
     m_swapchain = std::make_unique<RenderSwapchain>(m_context.get(), m_window);
     m_commandManager = std::make_unique<CommandManager>(m_context.get(), m_swapchain->getImageViews().size());
 
+    createGlobalResources();
+
     VkCommandBuffer cmd = m_commandManager->beginSingleTimeCommands();
     m_context->createDefaultTextures(cmd);
     m_commandManager->endSingleTimeCommands(cmd, m_context->getGraphicsQueue());
     vkQueueWaitIdle(m_context->getGraphicsQueue());
 
-    m_sceneManager = std::make_unique<SceneManager>(m_context.get());
+    m_sceneManager = std::make_unique<SceneManager>(this);
 
     createSyncObjects();
 }
@@ -565,6 +589,10 @@ Renderer::Renderer(GLFWwindow* window) : m_window(window) {
 Renderer::~Renderer() {
     VkDevice device = m_context->getDevice();
     vkDeviceWaitIdle(device);
+
+    for (const auto& res : m_globalResources) {
+        vmaDestroyBuffer(m_context->getAllocator(), res.buffer, res.allocation);
+    }
 
     vkDestroySemaphore(device, m_imageAvailableSemaphore, nullptr);
     vkDestroySemaphore(device, m_renderFinishedSemaphore, nullptr);
@@ -634,7 +662,17 @@ void Renderer::drawFrame(float elapsedTimeSec) {
 
     vkCmdBeginRendering(cmd, &renderingInfo);
     
-    m_sceneManager->render(cmd, m_swapchain->getExtent());
+    VkViewport viewport = {};
+    viewport.width = static_cast<float>(m_swapchain->getExtent().width);
+    viewport.height = static_cast<float>(m_swapchain->getExtent().height);
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+    VkRect2D scissor = {};
+    scissor.extent = m_swapchain->getExtent();
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+    m_sceneManager->render(cmd, imageIndex, m_swapchain->getExtent());
 
     vkCmdEndRendering(cmd);
 
@@ -764,6 +802,17 @@ void Renderer::transitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
     );
 }
 
+VkDescriptorSet Renderer::getGlobalDescriptorSet(uint32_t frameIndex) const {
+    return m_globalResources[frameIndex].descriptorSet;
+}
+
+void Renderer::updateGlobalBuffer(uint32_t frameIndex, const GlobalData& data) {
+    void* mappedData;
+    vmaMapMemory(m_context->getAllocator(), m_globalResources[frameIndex].allocation, &mappedData);
+    memcpy(mappedData, &data, sizeof(GlobalData));
+    vmaUnmapMemory(m_context->getAllocator(), m_globalResources[frameIndex].allocation);
+}
+
 void Renderer::createSyncObjects() {
     VkDevice device = m_context->getDevice();
 
@@ -778,5 +827,49 @@ void Renderer::createSyncObjects() {
         vkCreateSemaphore(device, &semaphoreInfo, nullptr, &m_renderFinishedSemaphore) != VK_SUCCESS ||
         vkCreateFence(device, &fenceInfo, nullptr, &m_inFlightFence) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create synchronization objects for a frame!");
+    }
+}
+
+void Renderer::createGlobalResources() {
+    size_t imageCount = m_swapchain->getImageViews().size();
+    m_globalResources.resize(imageCount);
+
+    for (size_t i = 0; i < imageCount; ++i) {
+        VkBufferCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        createInfo.size = sizeof(GlobalData);
+        createInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+
+        VmaAllocationCreateInfo allocInfo = {};
+        allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+
+        VkResult result = vmaCreateBuffer(
+            m_context->getAllocator(),
+            &createInfo,
+            &allocInfo,
+            &m_globalResources[i].buffer,
+            &m_globalResources[i].allocation,
+            nullptr
+        );
+        if (result != VK_SUCCESS) {
+            throw std::runtime_error(std::format("Failed to create global uniform buffer! (CODE:%X)", (uint32_t)result));
+        }
+
+        m_globalResources[i].descriptorSet = m_context->allocateDescriptorSet(m_context->getGlobalDescriptorSetLayout());
+
+        VkDescriptorBufferInfo bufferInfo = {};
+        bufferInfo.buffer = m_globalResources[i].buffer;
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(GlobalData);
+        VkWriteDescriptorSet write = {};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.dstSet = m_globalResources[i].descriptorSet;
+        write.dstBinding = 0;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        write.descriptorCount = 1;
+        write.pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(m_context->getDevice(), 1, &write, 0, nullptr);
     }
 }

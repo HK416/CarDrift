@@ -23,10 +23,12 @@ private:
 
     VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
     std::vector<VkDescriptorSetLayout> m_descriptorSetLayouts;
+    std::vector<bool> m_ownedLayouts;
 };
 
 class ShaderLayoutBuilder {
 public: 
+    ShaderLayoutBuilder& addDescriptorSetLayout(VkDescriptorSetLayout layout);
     ShaderLayoutBuilder& addDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding>& bindings);
     ShaderLayoutBuilder& addPushConstantRange(VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size);
 
@@ -35,6 +37,7 @@ public:
 private:
     struct DescriptorSetInfo {
         std::vector<VkDescriptorSetLayoutBinding> bindings;
+        VkDescriptorSetLayout existingLayout = VK_NULL_HANDLE;
     };
 
     std::vector<DescriptorSetInfo> m_descriptorSets;
