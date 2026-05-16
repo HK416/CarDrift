@@ -2,6 +2,7 @@
 #include "Renderer.h"
 #include "GameScene.h"
 #include "TestbedScene.h"
+#include "InputManager.h"
 
 const uint32_t DEF_WIDTH = 1280;
 const uint32_t DEF_HEIGHT = 720;
@@ -64,6 +65,8 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
+    InputManager::init(window);
+
     try {
         auto renderer = std::make_unique<Renderer>(window);
         SceneManager* sceneMgr = renderer->getSceneManager();
@@ -97,6 +100,9 @@ int main(int argc, char** argv) {
     catch (std::exception& e) {
         spdlog::error(e.what());
     }
+    
+    InputManager::shutdown();
+
     glfwDestroyWindow(window);
     glfwTerminate();
 
