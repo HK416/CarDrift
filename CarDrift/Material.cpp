@@ -5,8 +5,8 @@
 #include "Renderer.h"
 #include "Texture.h"
 
-Material::Material(RenderContext* context, Shader* shader) 
-    : m_context(context), m_shader(shader) {
+Material::Material(RenderContext* context, Shader* shader, bool transparent) 
+    : m_context(context), m_shader(shader), m_isTransparent(transparent) {
     auto layouts = m_shader->getLayout()->getDescriptorSetLayout();
     if (layouts.size() > 1) {
         m_descriptorSet = m_context->allocateDescriptorSet(layouts[1]);

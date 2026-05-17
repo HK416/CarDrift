@@ -6,6 +6,7 @@
 #include "ShaderLayout.h"
 #include "Material.h"
 #include "Mesh.h"
+#include "Texture.h"
 
 GameScene::GameScene(Renderer* renderer, SceneManager* manager) 
     : m_renderer(renderer), m_manager(manager) {}
@@ -217,4 +218,49 @@ void SceneManager::executeRenderQueue(
             vkCmdDrawIndexed(cmd, submesh.indexCount, 1, submesh.indexStart, 0, 0);
         }
     }
+}
+
+void GameScene::addMesh(const std::string& name, std::unique_ptr<Mesh> mesh) {
+    m_meshes[name] = std::move(mesh);
+}
+
+Mesh* GameScene::getMesh(const std::string& name) const {
+    auto it = m_meshes.find(name);
+    return (it != m_meshes.end()) ? it->second.get() : nullptr;
+}
+
+void GameScene::addMaterial(const std::string& name, std::unique_ptr<Material> material) {
+    m_materials[name] = std::move(material);
+}
+
+Material* GameScene::getMaterial(const std::string& name) const {
+    auto it = m_materials.find(name);
+    return (it != m_materials.end()) ? it->second.get() : nullptr;
+}
+
+void GameScene::addTexture(const std::string& name, std::unique_ptr<Texture> texture) {
+    m_textures[name] = std::move(texture);
+}
+
+Texture* GameScene::getTexture(const std::string& name) const {
+    auto it = m_textures.find(name);
+    return (it != m_textures.end()) ? it->second.get() : nullptr;
+}
+
+void GameScene::addShader(const std::string& name, std::unique_ptr<Shader> shader) {
+    m_shaders[name] = std::move(shader);
+}
+
+Shader* GameScene::getShader(const std::string& name) const {
+    auto it = m_shaders.find(name);
+    return (it != m_shaders.end()) ? it->second.get() : nullptr;
+}
+
+void GameScene::addShaderLayout(const std::string& name, std::unique_ptr<ShaderLayout> layout) {
+    m_shaderLayouts[name] = std::move(layout);
+}
+
+ShaderLayout* GameScene::getShaderLayout(const std::string& name) const {
+    auto it = m_shaderLayouts.find(name);
+    return (it != m_shaderLayouts.end()) ? it->second.get() : nullptr;
 }

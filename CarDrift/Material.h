@@ -9,12 +9,13 @@ public:
     Material() = delete;
     Material(const Material&) = delete;
     Material& operator=(const Material&) = delete;
-    Material(RenderContext* context, Shader* shader);
+    Material(RenderContext* context, Shader* shader, bool transparent = false);
     virtual ~Material() = default;
 
     virtual void bind(VkCommandBuffer cmd);
 
     Shader* getShader() const { return m_shader; }
+    bool isTransparent() const { return m_isTransparent; }
 
 protected:
     virtual void updateDescriptorSet() = 0;
@@ -22,7 +23,9 @@ protected:
 protected:
     RenderContext* m_context; // 소유하지 않는 클래스 맴버
     Shader* m_shader;         // 소유하지 않는 클래스 맴버 (장면이 관리함)
+    
     VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
+    bool m_isTransparent = false;
 };
 
 class StandardMaterial : public Material {

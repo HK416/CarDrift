@@ -36,3 +36,18 @@ protected:
 
     bool m_worldDirty = true;
 };
+
+class MeshObject : public GameObject {
+public:
+    MeshObject() = delete;
+    MeshObject(const MeshObject&) = delete;
+    MeshObject& operator=(const MeshObject&) = delete;
+    MeshObject(Mesh* mesh, Material* material);
+    virtual ~MeshObject() = default;
+
+    virtual void render(RenderQueue& queue) override;
+
+protected:
+    Mesh* m_mesh;
+    Material* m_material;
+};

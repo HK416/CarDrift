@@ -4,6 +4,11 @@ class SceneManager;
 class Renderer;
 class RenderContext;
 class RenderQueue;
+class Mesh;
+class Material;
+class Texture;
+class Shader;
+class ShaderLayout;
 
 // --- Events ---
 //
@@ -45,9 +50,33 @@ public:
     virtual bool isPausedBehind() const { return true; }
     virtual bool shouldClearDepth() const { return false; }
 
+    void addMesh(const std::string& name, std::unique_ptr<Mesh> mesh);
+    Mesh* getMesh(const std::string& name) const;
+
+    void addMaterial(const std::string& name, std::unique_ptr<Material> material);
+    Material* getMaterial(const std::string& name) const;
+    
+    void addTexture(const std::string& name, std::unique_ptr<Texture> texture);
+    Texture* getTexture(const std::string& name) const;
+    
+    void addShader(const std::string& name, std::unique_ptr<Shader> shader);
+    Shader* getShader(const std::string& name) const;
+
+    void addShaderLayout(const std::string& name, std::unique_ptr<ShaderLayout> layout);
+    ShaderLayout* getShaderLayout(const std::string& name) const;
+
 protected:
     Renderer* m_renderer;
     SceneManager* m_manager;
+
+    template<typename T>
+    using ResourceCache = std::unordered_map<std::string, std::unique_ptr<T>>;
+
+    ResourceCache<Mesh> m_meshes;
+    ResourceCache<Material> m_materials;
+    ResourceCache<Texture> m_textures;
+    ResourceCache<Shader> m_shaders;
+    ResourceCache<ShaderLayout> m_shaderLayouts;
 };
 
 // --- Manager ---

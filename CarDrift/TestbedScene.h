@@ -2,15 +2,7 @@
 #include "GameScene.h"
 #include "GameObject.h"
 
-class Mesh;
-class Material;
-class Shader;
-class ShaderLayout;
-class Texture;
 class GameCamera;
-
-template<typename T>
-using Cache = std::unordered_map<std::string, T>;
 
 class TestbedScene : public GameScene {
 public:
@@ -28,12 +20,6 @@ private:
     void createCubeMesh(VkCommandBuffer cmd);
 
 protected:
-    Cache<std::unique_ptr<ShaderLayout>> m_shaderLayouts;
-    Cache<std::unique_ptr<Shader>> m_shaders;
-    Cache<std::unique_ptr<Mesh>> m_meshes;
-    Cache<std::unique_ptr<Material>> m_materials;
-    Cache<std::unique_ptr<Texture>> m_textures;
-
     GameCamera* m_mainCamera = nullptr;
 
     std::vector<std::unique_ptr<GameObject>> m_allObjects;

@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "GameObject.h"
+#include "Material.h"
 
 GameObject::~GameObject() {
     removeParent();
@@ -83,4 +84,28 @@ void GameObject::updateWorldMatrix() {
         m_worldMatrix = m_transform.getLocalMatrix();
     }
     m_worldDirty = false;
+}
+
+MeshObject::MeshObject(Mesh* mesh, Material* material) 
+    : m_mesh(mesh), m_material(material) {}
+
+void MeshObject::render(RenderQueue& queue) {
+    if (!m_mesh || !m_material) {
+        return;
+    }
+
+    RenderItem item;
+    item.mesh = m_mesh;
+    item.material = m_material;
+    item.worldMatrix = m_worldMatrix;
+
+    if (m_material->isTransparent()) {
+        glm::vec3 camPos = queue.getGlobalData().cameraPos;
+        item.sortDistance = glm::distance(camPos, getTransform().getPosition());
+        queue.addTransparent(item);
+    } else {
+        queue.addOpaque(item);
+    }
+    
+    GameObject::render(queue);
 }

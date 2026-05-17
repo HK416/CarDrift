@@ -8,29 +8,6 @@
 #include "Texture.h"
 #include "GameCamera.h"
 
-class MeshObject : public GameObject {
-public:
-    MeshObject() = delete;
-    MeshObject(const MeshObject&) = delete;
-    MeshObject& operator=(const MeshObject&) = delete;
-    MeshObject(Mesh* mesh, Material* material)
-        : m_mesh(mesh), m_material(material) {}
-    virtual ~MeshObject() = default;
-
-    virtual void render(RenderQueue& queue) override {
-        RenderItem item;
-        item.mesh = m_mesh;
-        item.material = m_material;
-        item.worldMatrix = m_worldMatrix;
-        queue.addOpaque(item);
-        GameObject::render(queue);
-    }
-
-private:
-    Mesh* m_mesh;
-    Material* m_material;
-};
-
 TestbedScene::TestbedScene(Renderer* renderer, SceneManager* manager) 
     : GameScene(renderer, manager) {}
 
@@ -39,6 +16,7 @@ void TestbedScene::onEnter() {
     CommandManager* commandMgr = m_renderer->getCommandManager();
     VkCommandBuffer cmd = commandMgr->beginSingleTimeCommands();
 
+    // --- Cameras ---
     auto camera = std::make_unique<PerspectiveCamera>();
     camera->getTransform().setPosition({0.0f, 2.0f, -5.0f});
     
@@ -53,6 +31,7 @@ void TestbedScene::onEnter() {
     m_rootObjects.push_back(camera.get());
     m_allObjects.push_back(std::move(camera));
 
+    // --- Shader Layouts ---
     ShaderLayoutBuilder builder;
     builder.addDescriptorSetLayout(context->getGlobalDescriptorSetLayout());
     builder.addDescriptorSetLayout({
@@ -62,18 +41,25 @@ void TestbedScene::onEnter() {
         {3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
     });
     builder.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4));
-    m_shaderLayouts["Standard"] = builder.build(context);
-    m_shaders["Standard"] = std::make_unique<StandardOpaqueShader>(context, m_shaderLayouts["Standard"].get());
+    addShaderLayout("Standard", builder.build(context));
 
+    // --- Shaders ---
+    auto shader = std::make_unique<StandardOpaqueShader>(context, getShaderLayout("Standard"));
+    addShader("Standard", std::move(shader));
+
+    // --- Meshes ---
     createCubeMesh(cmd);
     
-    m_materials["Standard"] = std::make_unique<StandardMaterial>(context, m_shaders["Standard"].get());
-    static_cast<StandardMaterial*>(m_materials["Standard"].get())->setAlbedo({1.0f, 0.5f, 0.3f, 1.0f});
+    // --- Materials ---
+    auto material = std::make_unique<StandardMaterial>(context, getShader("Standard"));
+    material->setAlbedo({1.0f, 0.5f, 0.3f, 1.0f});
+    addMaterial("Standard", std::move(material));
     
+    // --- Objects ---
     // 5x5 그리드로 큐브 배치
     for (int x = -2; x <= 2; ++x) {
         for (int z = -2; z <= 2; ++z) {
-            auto cube = std::make_unique<MeshObject>(m_meshes["Cube"].get(), m_materials["Standard"].get());
+            auto cube = std::make_unique<MeshObject>(getMesh("Cube"), getMaterial("Standard"));
             cube->getTransform().setPosition({ (float)x * 2.0f, 0.0f, (float)z * 2.0f + 10.0f });
             
             m_rootObjects.push_back(cube.get());
@@ -221,5 +207,5 @@ void TestbedScene::createCubeMesh(VkCommandBuffer cmd) {
         .setColors(colors)
         .setIndices(indices);
 
-    m_meshes["Cube"] = builder.build(m_renderer->getContext(), cmd);
+    addMesh("Cube", builder.build(m_renderer->getContext(), cmd));
 }
