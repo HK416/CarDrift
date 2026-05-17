@@ -33,6 +33,7 @@ void TestbedScene::onEnter() {
 
     // --- Shader Layouts ---
     ShaderLayoutBuilder builder;
+    builder.addDescriptorSetLayout(context->getGeometryDescriptorSetLayout());
     builder.addDescriptorSetLayout(context->getGlobalDescriptorSetLayout());
     builder.addDescriptorSetLayout({
         {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
@@ -40,11 +41,12 @@ void TestbedScene::onEnter() {
         {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
         {3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
     });
-    builder.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4));
+    builder.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstantData));
     addShaderLayout("Standard", builder.build(context));
 
+
     // --- Shaders ---
-    auto shader = std::make_unique<StandardOpaqueShader>(context, getShaderLayout("Standard"));
+    auto shader = std::make_unique<StandardShader>(context, getShaderLayout("Standard"), 0);
     addShader("Standard", std::move(shader));
 
     // --- Meshes ---
@@ -207,5 +209,6 @@ void TestbedScene::createCubeMesh(VkCommandBuffer cmd) {
         .setColors(colors)
         .setIndices(indices);
 
-    addMesh("Cube", builder.build(m_renderer->getContext(), cmd));
+    VkDescriptorSetLayout layout = m_renderer->getContext()->getGeometryDescriptorSetLayout();
+    addMesh("Cube", builder.build(m_renderer->getContext(), cmd, layout));
 }

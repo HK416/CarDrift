@@ -22,6 +22,7 @@ public:
     VkDescriptorPool getEngineDescriptorPool() const { return m_descriptorPool; }
     VkDescriptorPool getGuiDescriptorPool() const { return m_guiDescriptorPool; }
 
+    VkDescriptorSetLayout getGeometryDescriptorSetLayout() const { return m_geometryLayout; }
     VkDescriptorSetLayout getGlobalDescriptorSetLayout() const { return m_globalLayout; }
 
     VkDescriptorSet allocateDescriptorSet(VkDescriptorSetLayout layout);
@@ -38,7 +39,7 @@ private:
     void createRenderDevice();
     void createMemoryAllocator();
     void createDescriptorPools();
-    void createGlobalLayout();
+    void createDescriptorlLayouts();
 
     bool checkValidationLayerSupport();
     std::vector<const char*> getRequiredExtensions();
@@ -57,6 +58,7 @@ private:
     VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
     VkDescriptorPool m_guiDescriptorPool = VK_NULL_HANDLE;
 
+    VkDescriptorSetLayout m_geometryLayout = VK_NULL_HANDLE;
     VkDescriptorSetLayout m_globalLayout = VK_NULL_HANDLE;
 
 #ifdef NDEBUG

@@ -17,12 +17,24 @@ Mesh::~Mesh() {
     }
 }
 
-void Mesh::bindBuffers(VkCommandBuffer cmd) {
-    for (auto const& [attr, res] : m_vertexBuffers) {
-        VkDeviceSize offset = 0;
-        vkCmdBindVertexBuffers(cmd, (uint32_t)attr, 1, &res.buffer, &offset);
+void Mesh::bindBuffers(VkCommandBuffer cmd, VkPipelineLayout pipelineLayout) {
+    if (m_indexBuffer.buffer == VK_NULL_HANDLE ||
+        m_geometrySet == VK_NULL_HANDLE) {
+        return;
     }
+
+    // Bind Index Buffer
     vkCmdBindIndexBuffer(cmd, m_indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+    // Bind Descriptor Set
+    vkCmdBindDescriptorSets(
+        cmd,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        pipelineLayout,
+        0,
+        1, &m_geometrySet,
+        0, nullptr
+    );
 }
 
 void Mesh::cleanupStaging() {
@@ -83,7 +95,11 @@ MeshBuilder& MeshBuilder::addSubMesh(uint32_t start, uint32_t count) {
     return *this;
 }
 
-std::unique_ptr<Mesh> MeshBuilder::build(RenderContext* context, VkCommandBuffer cmd) {
+std::unique_ptr<Mesh> MeshBuilder::build(
+    RenderContext* context, 
+    VkCommandBuffer cmd, 
+    VkDescriptorSetLayout layout
+) {
     auto mesh = std::make_unique<Mesh>(context);
 
     // Attribute Position
@@ -198,6 +214,44 @@ std::unique_ptr<Mesh> MeshBuilder::build(RenderContext* context, VkCommandBuffer
         mesh->m_subMeshes.push_back({0, static_cast<uint32_t>(m_indices.size())});
     }
 
+    // Geometry Descriptor Set
+    mesh->m_geometrySet = context->allocateDescriptorSet(layout);
+
+    std::vector<VkDescriptorBufferInfo> bufferInfos(static_cast<uint32_t>(VertexAttribute::Count));
+    std::vector<VkWriteDescriptorSet> writes;
+    writes.reserve(static_cast<uint32_t>(VertexAttribute::Count));
+
+    for (uint32_t i = 0; i < static_cast<uint32_t>(VertexAttribute::Count); ++i) {
+        VertexAttribute attr = static_cast<VertexAttribute>(i);
+
+        auto it = mesh->m_vertexBuffers.find(attr);
+        if (it != mesh->m_vertexBuffers.end()) {
+            bufferInfos[i].buffer = it->second.buffer;
+            bufferInfos[i].offset = 0;
+            bufferInfos[i].range = VK_WHOLE_SIZE;
+
+            VkWriteDescriptorSet write = {};
+            write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            write.dstSet = mesh->m_geometrySet;
+            write.dstBinding = i;
+            write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            write.descriptorCount = 1;
+            write.pBufferInfo = &bufferInfos[i];
+
+            writes.emplace_back(write);
+        }
+    }
+
+    if (!writes.empty()) {
+        vkUpdateDescriptorSets(
+            context->getDevice(),
+            static_cast<uint32_t>(writes.size()),
+            writes.data(),
+            0,
+            nullptr
+        );
+    }
+
     return mesh;
 }
 
@@ -242,7 +296,7 @@ void MeshBuilder::upload(
     dCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     dCreateInfo.size = size;
     dCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
     VmaAllocationCreateInfo dAllocInfo = {};
     dAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;

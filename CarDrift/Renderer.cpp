@@ -55,7 +55,7 @@ RenderContext::RenderContext(GLFWwindow* window) {
     createRenderDevice();
     createMemoryAllocator();
     createDescriptorPools();
-    createGlobalLayout();
+    createDescriptorlLayouts();
 }
 
 RenderContext::~RenderContext() {
@@ -65,6 +65,10 @@ RenderContext::~RenderContext() {
 
     if (m_globalLayout != VK_NULL_HANDLE) {
         vkDestroyDescriptorSetLayout(m_device, m_globalLayout, nullptr);
+    }
+
+    if (m_geometryLayout != VK_NULL_HANDLE) {
+        vkDestroyDescriptorSetLayout(m_device, m_geometryLayout, nullptr);
     }
 
     if (m_descriptorPool != VK_NULL_HANDLE) {
@@ -230,6 +234,8 @@ void RenderContext::createRenderDevice() {
     VkPhysicalDeviceVulkan12Features features12 = {};
     features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     features12.timelineSemaphore = VK_TRUE;
+    features12.scalarBlockLayout = VK_TRUE;
+    features12.descriptorBindingPartiallyBound = VK_TRUE;
 
     VkPhysicalDeviceVulkan13Features features13 = {};
     features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
@@ -321,20 +327,52 @@ void RenderContext::createDescriptorPools() {
     }
 }
 
-void RenderContext::createGlobalLayout() {
-    VkDescriptorSetLayoutBinding layoutBinding = {};
-    layoutBinding.binding = 0;
-    layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutBinding.descriptorCount = 1;
-    layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+void RenderContext::createDescriptorlLayouts() {
+    // Geometry Descriptor Set Layout
+    {
+        std::vector<VkDescriptorSetLayoutBinding> layoutBindings(8);
+        std::vector<VkDescriptorBindingFlags> bindingFlags(8, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);
 
-    VkDescriptorSetLayoutCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    createInfo.bindingCount = 1;
-    createInfo.pBindings = &layoutBinding;
+        for (size_t i = 0; i < layoutBindings.size(); ++i) {
+            layoutBindings[i].binding = static_cast<uint32_t>(i);
+            layoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            layoutBindings[i].descriptorCount = 1;
+            layoutBindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        }
 
-    if (vkCreateDescriptorSetLayout(m_device, &createInfo, nullptr, &m_globalLayout) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create global descriptor set layout!");
+        VkDescriptorSetLayoutBindingFlagsCreateInfo extendedInfo = {};
+        extendedInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+        extendedInfo.bindingCount = static_cast<uint32_t>(bindingFlags.size());
+        extendedInfo.pBindingFlags = bindingFlags.data();
+
+        VkDescriptorSetLayoutCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        createInfo.pNext = &extendedInfo;
+        createInfo.bindingCount = static_cast<uint32_t>(layoutBindings.size());
+        createInfo.pBindings = layoutBindings.data();
+
+        if (vkCreateDescriptorSetLayout(m_device, &createInfo, nullptr, &m_geometryLayout) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create geometry descriptor set layout!");
+        }
+    }
+
+    // Global Descriptor Set Layout
+    {
+        VkDescriptorSetLayoutBinding layoutBinding = {};
+        layoutBinding.binding = 0;
+        layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        layoutBinding.descriptorCount = 1;
+        layoutBinding.stageFlags =
+            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        VkDescriptorSetLayoutCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        createInfo.bindingCount = 1;
+        createInfo.pBindings = &layoutBinding;
+
+        if (vkCreateDescriptorSetLayout(m_device, &createInfo, nullptr, &m_globalLayout) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create global descriptor set layout!");
+        }
     }
 }
 

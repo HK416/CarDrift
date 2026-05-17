@@ -1,66 +1,41 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
+
+#include "global_types.glsl"
+#include "common.glsl"
+#include "pbr_common.glsl"
 
 layout(location = 0) in vec3 inWorldPos;
 layout(location = 1) in vec3 inNormal;
-layout(location = 2) in vec2 inUV0;
-layout(location = 3) in vec4 inColor;
+layout(location = 2) in vec4 inTangent;
+layout(location = 3) in vec2 inTexcoord0;
+layout(location = 4) in vec2 inTexcoord1;
+layout(location = 5) in vec4 inColor;
 
-struct Light {
-	float xPos, yPos, zPos;
-	uint type;
-	float xDir, yDir, zDir;
-	float range;
-	float r, g, b;
-	float intensity;
-	float spotInner, spotOuter;
-	int shadowIndex;
-	uint pad0;
-};
-
-layout(set = 0, binding = 0) uniform GlobalData {
-	mat4 view;
-	mat4 proj;
-	vec3 cameraPos;
-	uint pad0;
-
-	Light lights[16];
-	uint lightCount;
-	float ambientIntensity;
-	uint pad1[2];
-
-	mat4 shadowMatrices[4];
-} globalData;
-
-layout(set = 1, binding = 0) uniform MaterialParams {
-	vec4 albedoFactor;
-	float metallicFactor;
-	float roughnessFactor;
-	float aoFactor;
-	uint pad0;
-} material;
-
-layout(set = 1, binding = 1) uniform sampler2D albedoMap;
-layout(set = 1, binding = 2) uniform sampler2D normalMap;
-layout(set = 1, binding = 3) uniform sampler2D metallicRoughnessMap;
-
-layout(location = 0) out vec4 outFragColor;
+layout(location = 0) out vec4 outColor;
 
 void main() {
-	vec4 albedo = texture(albedoMap, inUV0) * material.albedoFactor;
+	vec4 albedo = texture(albedoMap, inTexcoord0) * material.albedoFactor;
+
+	if (USE_CUTOFF) {
+		if (albedo.a < material.alphaCutoff) {
+			discard;
+		}
+	}
 
 	vec3 N = normalize(inNormal);
-	vec3 resultColor = albedo.rgb * globalData.ambientIntensity;
+	vec3 resultColor = albedo.rgb * global.ambientIntensity;
 
-	for (uint i = 0; i < globalData.lightCount; i++) {
-		Light light = globalData.lights[i];
+	for (uint i = 0; i < global.lightCount; i++) {
+		Light light = global.lights[i];
 
 		if (light.type == 0) {
-			vec3 L = normalize(-vec3(light.xDir, light.yDir, light.zDir));
+			vec3 L = normalize(-light.direction);
 			float diff = max(dot(N, L), 0.0);
-			vec3 diffuse = diff * vec3(light.r, light.g, light.b) * light.intensity;
+			vec3 diffuse = diff * light.color * light.intensity;
 			resultColor += albedo.rgb * diffuse;
 		}
 	}
 
-	outFragColor = vec4(resultColor, albedo.a);
+	outColor = vec4(resultColor, albedo.a);
 }

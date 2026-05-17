@@ -30,11 +30,14 @@ public:
     Mesh(RenderContext* context);
     ~Mesh();
 
-    void bindBuffers(VkCommandBuffer cmd);
+    void bindBuffers(VkCommandBuffer cmd, VkPipelineLayout pipelineLayout);
     void cleanupStaging();
 
     const std::vector<SubMesh>& getSubMeshes() const { return m_subMeshes; }
     uint32_t getAttributeMask() const { return m_attributeMask; }
+
+    VkDescriptorSet getGeometryDescriptorSet() const { return m_geometrySet; }
+    VkBuffer getIndexBuffer() const { return m_indexBuffer.buffer; }
 
 private:
     struct BufferResource {
@@ -44,12 +47,14 @@ private:
 
     RenderContext* m_context; // 소유하지 않는 클래스 맴버
 
+    VkDescriptorSet m_geometrySet = VK_NULL_HANDLE;
     std::map<VertexAttribute, BufferResource> m_vertexBuffers;
     BufferResource m_indexBuffer;
 
     std::vector<BufferResource> m_stagingResources;
     std::vector<SubMesh> m_subMeshes;
     uint32_t m_attributeMask = 0;
+
 };
 
 class MeshBuilder {
@@ -66,7 +71,11 @@ public:
     MeshBuilder& setIndices(const std::vector<uint32_t>& indices);
     MeshBuilder& addSubMesh(uint32_t start, uint32_t count);
 
-    std::unique_ptr<Mesh> build(RenderContext* context, VkCommandBuffer cmd);
+    std::unique_ptr<Mesh> build(
+        RenderContext* context,
+        VkCommandBuffer cmd,
+        VkDescriptorSetLayout layout
+    );
 
 private:
     void upload(

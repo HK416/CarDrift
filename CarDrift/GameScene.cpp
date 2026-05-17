@@ -180,6 +180,7 @@ void SceneManager::executeRenderQueue(
         Material* lastMaterial = nullptr;
         Mesh* lastMesh = nullptr;
 
+        PushConstantData pcData;
         VkDescriptorSet globalSet = m_renderer->getGlobalDescriptorSet(frameIndex);
 
         for (const auto& item : opaqueItems) {
@@ -192,7 +193,7 @@ void SceneManager::executeRenderQueue(
                 lastShader->bind(cmd);
 
                 VkPipelineLayout pipelineLayout = lastShader->getLayout()->getPipelineLayout();
-                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &globalSet, 0, nullptr);
+                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &globalSet, 0, nullptr);
             }
 
             if (item.material != lastMaterial) {
@@ -202,16 +203,21 @@ void SceneManager::executeRenderQueue(
 
             if (item.mesh != lastMesh) {
                 lastMesh = item.mesh;
-                lastMesh->bindBuffers(cmd);
+                pcData.attributeMask = item.mesh->getAttributeMask();
+
+                
+                VkPipelineLayout pipelineLayout = lastShader->getLayout()->getPipelineLayout();
+                lastMesh->bindBuffers(cmd, pipelineLayout);
             }
 
+            pcData.worldMatrix = item.worldMatrix;
             vkCmdPushConstants(
                 cmd,
                 lastShader->getLayout()->getPipelineLayout(),
                 VK_SHADER_STAGE_VERTEX_BIT,
                 0,
-                sizeof(glm::mat4),
-                &item.worldMatrix
+                sizeof(PushConstantData),
+                &pcData
             );
 
             const auto& submesh = item.mesh->getSubMeshes()[item.submeshIndex];

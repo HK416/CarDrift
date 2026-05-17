@@ -1,55 +1,52 @@
 #version 450
+#extension GL_GOOGLE_include_directive : require
 
-layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec3 inNormal;
-layout(location = 2) in vec4 inTangent;
-layout(location = 3) in vec2 inUV0;
-layout(location = 4) in vec2 inUV1;
-layout(location = 5) in vec4 inColor;
-
-struct Light {
-	float xPos, yPos, zPos;
-	uint type;
-	float xDir, yDir, zDir;
-	float range;
-	float r, g, b;
-	float intensity;
-	float spotInner, spotOuter;
-	int shadowIndex;
-	uint pad0;
-};
-
-layout(set = 0, binding = 0) uniform GlobalData {
-	mat4 view;
-	mat4 proj;
-	vec3 cameraPos;
-	uint pad0;
-
-	Light lights[16];
-	uint lightCount;
-	float ambientIntensity;
-	uint pad1[2];
-
-	mat4 shadowMatrices[4];
-} globalData;
-
-layout(push_constant) uniform PushConstants {
-	mat4 worldMatrix;
-} pushConstants;
+#include "global_types.glsl"
+#include "input_attributes.glsl"
+#include "common.glsl"
 
 layout(location = 0) out vec3 outWorldPos;
 layout(location = 1) out vec3 outNormal;
-layout(location = 2) out vec2 outUV0;
-layout(location = 3) out vec4 outColor;
+layout(location = 2) out vec4 outTangent;
+layout(location = 3) out vec2 outTexcoord0;
+layout(location = 4) out vec2 outTexcoord1;
+layout(location = 5) out vec4 outColor;
 
 void main() {
-	vec4 worldPos = pushConstants.worldMatrix * vec4(inPosition, 1.0);
+	uint index = gl_VertexIndex;
+
+	vec3 inPosition = positions[index];
+	vec3 inNormal = vec3(0.0, 1.0, 0.0);
+	vec4 inTangent = vec4(1.0, 0.0, 0.0, 1.0);
+	vec2 inTexcoord0 = vec2(0.0, 0.0);
+	vec2 inTexcoord1 = vec2(0.0, 0.0);
+	vec4 inColor = vec4(1.0, 1.0, 1.0, 1.0);
+
+	if ((pc.attributeMask & FLAG_NORMAL) != 0)	inNormal = normals[index];
+	if ((pc.attributeMask & FLAG_TANGENT) != 0) inTangent = tangents[index];
+	if ((pc.attributeMask & FLAG_UV0) != 0)		inTexcoord0 = texcoords0[index];
+	if ((pc.attributeMask & FLAG_UV1) != 0)		inTexcoord1 = texcoords1[index];
+	if ((pc.attributeMask & FLAG_COLOR) != 0)	inColor = colors[index];
+
+	mat4 skinMat = mat4(1.0);
+	if (HAS_SKINNING && (pc.attributeMask & FLAG_JOINT_INDEX) != 0 && (pc.attributeMask & FLAG_JOINT_WEIGHT) != 0) {
+		ivec4 jointIndex = jointIndices[index];
+		vec4 jointWeight = jointWeights[index];
+	}
+
+	mat4 modelMat = pc.worldMatrix * skinMat;
+	vec4 worldPos = modelMat * vec4(inPosition, 1.0);
+
+	mat3 normalMat = transpose(inverse(mat3(modelMat)));
+	vec3 worldNormal = normalize(normalMat * inNormal);
+	vec4 worldTangent = vec4(normalize(normalMat * inTangent.xyz), inTangent.w);
+
 	outWorldPos = worldPos.xyz;
-
-	outNormal = normalize(mat3(pushConstants.worldMatrix) * inNormal);
-
-	outUV0 = inUV0;
+	outNormal = worldNormal;
+	outTangent = worldTangent;
+	outTexcoord0 = inTexcoord0;
+	outTexcoord1 = inTexcoord1;
 	outColor = inColor;
 
-	gl_Position = globalData.proj * globalData.view * worldPos;
+	gl_Position = global.proj * global.view * worldPos;
 }

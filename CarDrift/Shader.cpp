@@ -3,73 +3,30 @@
 #include "Renderer.h"
 #include "ShaderLayout.h"
 
-VertexInputDescription VertexInputDescription::getStandardMeshLayout(bool skinned) {
-    VertexInputDescription desc;
-
-    if (skinned) {
-        desc.bindings = {
-            {0, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX},  // Position
-            {1, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX},  // Normal
-            {2, sizeof(glm::vec4), VK_VERTEX_INPUT_RATE_VERTEX},  // Tangent
-            {3, sizeof(glm::vec2), VK_VERTEX_INPUT_RATE_VERTEX},  // UV0
-            {4, sizeof(glm::vec2), VK_VERTEX_INPUT_RATE_VERTEX},  // UV1
-            {5, sizeof(glm::vec4), VK_VERTEX_INPUT_RATE_VERTEX},  // Color
-            {6, sizeof(glm::ivec4), VK_VERTEX_INPUT_RATE_VERTEX}, // Joint Index
-            {7, sizeof(glm::vec4), VK_VERTEX_INPUT_RATE_VERTEX}, // Joint Weight
-        };
-
-        desc.attributes = {
-            {0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0},    // Position
-            {1, 1, VK_FORMAT_R32G32B32_SFLOAT, 0},    // Normal
-            {2, 2, VK_FORMAT_R32G32B32A32_SFLOAT, 0}, // Tangent
-            {3, 3, VK_FORMAT_R32G32_SFLOAT, 0},       // UV0
-            {4, 4, VK_FORMAT_R32G32_SFLOAT, 0},       // UV1
-            {5, 5, VK_FORMAT_R32G32B32A32_SFLOAT, 0}, // Color
-            {6, 6, VK_FORMAT_R32G32B32A32_SINT, 0},   // Joint Index
-            {7, 7, VK_FORMAT_R32G32B32A32_SFLOAT, 0}, // Joint Weight
-        };
-    } else {
-        desc.bindings = {
-            {0, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // Position
-            {1, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX}, // Normal
-            {2, sizeof(glm::vec4), VK_VERTEX_INPUT_RATE_VERTEX}, // Tangent
-            {3, sizeof(glm::vec2), VK_VERTEX_INPUT_RATE_VERTEX}, // UV0
-            {4, sizeof(glm::vec2), VK_VERTEX_INPUT_RATE_VERTEX}, // UV1
-            {5, sizeof(glm::vec4), VK_VERTEX_INPUT_RATE_VERTEX}, // Color
-        };
-
-        desc.attributes = {
-            {0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0},    // Position
-            {1, 1, VK_FORMAT_R32G32B32_SFLOAT, 0},    // Normal
-            {2, 2, VK_FORMAT_R32G32B32A32_SFLOAT, 0}, // Tangent
-            {3, 3, VK_FORMAT_R32G32_SFLOAT, 0},       // UV0
-            {4, 4, VK_FORMAT_R32G32_SFLOAT, 0},       // UV1
-            {5, 5, VK_FORMAT_R32G32B32A32_SFLOAT, 0}, // Color
-        };
-    }
-
-    return desc;
-}
-
-RenderPipelineStates::RenderPipelineStates(bool skinned) {
-    vertexInput = VertexInputDescription::getStandardMeshLayout(skinned);
-
+RenderPipelineStates::RenderPipelineStates() {
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
+
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.depthClampEnable = VK_FALSE;
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    
+    rasterizer.depthBiasEnable = VK_FALSE;
+
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.sampleShadingEnable = VK_FALSE;
     multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depthStencil.depthTestEnable = VK_TRUE;
     depthStencil.depthWriteEnable = VK_TRUE;
     depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+    depthStencil.depthBoundsTestEnable = VK_FALSE;
+    depthStencil.stencilTestEnable = VK_FALSE;
     
     colorBlendAttachment.colorWriteMask =
         VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
@@ -77,17 +34,23 @@ RenderPipelineStates::RenderPipelineStates(bool skinned) {
     colorBlendAttachment.blendEnable = VK_FALSE;
 
     colorBlend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlend.logicOpEnable = VK_FALSE;
+    colorBlend.logicOp = VK_LOGIC_OP_COPY;
     colorBlend.attachmentCount = 1;
     colorBlend.pAttachments = &colorBlendAttachment;
 }
 
-Shader::Shader(RenderContext* context, ShaderLayout* layout)
-    : m_context(context), m_layout(layout) {}
+Shader::Shader(RenderContext* context, ShaderLayout* layout, uint32_t shaderKey)
+    : m_context(context), m_layout(layout), m_shaderKey(shaderKey) {}
 
 Shader::~Shader() {
     if (m_pipeline != VK_NULL_HANDLE) {
         vkDestroyPipeline(m_context->getDevice(), m_pipeline, nullptr);
     }
+}
+
+void Shader::bind(VkCommandBuffer cmd) {
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
 }
 
 VkShaderModule Shader::createShaderModule(const std::vector<char>& code) {
@@ -121,16 +84,21 @@ std::vector<char> Shader::readSPIRVFile(const std::filesystem::path& filePath) {
     return buffer;
 }
 
-void Shader::setupRenderPipeline(
+GraphicsShader::GraphicsShader(RenderContext* context, ShaderLayout* layout, uint32_t shaderKey) 
+    : Shader(context, layout, shaderKey) {}
+
+void GraphicsShader::bind(VkCommandBuffer cmd) {
+    if (m_pipeline != VK_NULL_HANDLE) {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+    }
+}
+
+void GraphicsShader::setupRenderPipeline(
     const RenderPipelineStates& states,
     std::vector<VkPipelineShaderStageCreateInfo>& stages
 ) {
     VkPipelineVertexInputStateCreateInfo vertexInputState = {};
     vertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputState.vertexBindingDescriptionCount = static_cast<uint32_t>(states.vertexInput.bindings.size());
-    vertexInputState.pVertexBindingDescriptions = states.vertexInput.bindings.data();
-    vertexInputState.vertexAttributeDescriptionCount = static_cast<uint32_t>(states.vertexInput.attributes.size());
-    vertexInputState.pVertexAttributeDescriptions = states.vertexInput.attributes.data();
 
     VkPipelineViewportStateCreateInfo viewportState = {};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -171,32 +139,90 @@ void Shader::setupRenderPipeline(
     }
 }
 
-StandardOpaqueShader::StandardOpaqueShader(RenderContext* context, ShaderLayout* layout) 
-    : Shader(context, layout) {
+ComputeShader::ComputeShader(RenderContext* context, ShaderLayout* layout)
+    : Shader(context, layout) {}
+
+void ComputeShader::bind(VkCommandBuffer cmd) {
+    if (m_pipeline != VK_NULL_HANDLE) {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
+    }
+}
+
+void ComputeShader::dispatch(
+    VkCommandBuffer cmd,
+    uint32_t groupCountX,
+    uint32_t groupCountY,
+    uint32_t groupCountZ
+) {
+    vkCmdDispatch(cmd, groupCountX, groupCountY, groupCountZ);
+}
+
+StandardShader::StandardShader(RenderContext* context, ShaderLayout* layout, uint32_t shaderKey) 
+    : GraphicsShader(context, layout, shaderKey) {
+    // Load Shader Binary
     auto vertCode = readSPIRVFile("shaders/standard.vert.spv");
     auto fragCode = readSPIRVFile("shaders/standard.frag.spv");
 
     VkShaderModule vertModule = createShaderModule(vertCode);
     VkShaderModule fragModule = createShaderModule(fragCode);
 
+    // Configuration Specialization Constants
+    struct SpecializationData {
+        VkBool32 hasSkinning;
+        VkBool32 isTransparent;
+        VkBool32 useCutoff;
+    } specData;
+
+    specData.hasSkinning = hasFeature(shaderKey, ShaderFeature::Skinned);
+    specData.isTransparent = hasFeature(shaderKey, ShaderFeature::Transparent);
+    specData.useCutoff = hasFeature(shaderKey, ShaderFeature::Cutoff);
+
+    std::vector<VkSpecializationMapEntry> mapEntries = {
+        {0, offsetof(SpecializationData, hasSkinning), sizeof(VkBool32)},
+        {1, offsetof(SpecializationData, isTransparent), sizeof(VkBool32)},
+        {2, offsetof(SpecializationData, useCutoff), sizeof(VkBool32)}
+    };
+
+    VkSpecializationInfo specInfo = {};
+    specInfo.mapEntryCount = static_cast<uint32_t>(mapEntries.size());
+    specInfo.pMapEntries = mapEntries.data();
+    specInfo.dataSize = sizeof(SpecializationData);
+    specInfo.pData = &specData;
+
+    // Setup Shader Stages
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages(2);
+
     shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
     shaderStages[0].module = vertModule;
     shaderStages[0].pName = "main";
+    shaderStages[0].pSpecializationInfo = &specInfo;
 
     shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     shaderStages[1].module = fragModule;
     shaderStages[1].pName = "main";
+    shaderStages[1].pSpecializationInfo = &specInfo;
 
+    // Configuration Dynamic States
     RenderPipelineStates states;
+
+    if (specData.isTransparent) {
+        states.depthStencil.depthWriteEnable = VK_FALSE;
+
+        states.colorBlendAttachment.blendEnable = VK_TRUE;
+        states.colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        states.colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        states.colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+        states.colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        states.colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        states.colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    }
+
+    // Create Graphics Pipeline
     setupRenderPipeline(states, shaderStages);
 
+    // Cleanup
     vkDestroyShaderModule(m_context->getDevice(), vertModule, nullptr);
     vkDestroyShaderModule(m_context->getDevice(), fragModule, nullptr);
-}
-
-void StandardOpaqueShader::bind(VkCommandBuffer cmd) {
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
 }

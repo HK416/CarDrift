@@ -113,6 +113,10 @@
     <ClInclude Include="Transform.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shaders\common.glsl" />
+    <None Include="shaders\global_types.glsl" />
+    <None Include="shaders\input_attributes.glsl" />
+    <None Include="shaders\pbr_common.glsl" />
     <None Include="shaders\standard.frag" />
     <None Include="shaders\standard.vert" />
   </ItemGroup>

@@ -8,15 +8,15 @@
 Material::Material(RenderContext* context, Shader* shader, bool transparent) 
     : m_context(context), m_shader(shader), m_isTransparent(transparent) {
     auto layouts = m_shader->getLayout()->getDescriptorSetLayout();
-    if (layouts.size() > 1) {
-        m_descriptorSet = m_context->allocateDescriptorSet(layouts[1]);
+    if (layouts.size() > 2) {
+        m_descriptorSet = m_context->allocateDescriptorSet(layouts[2]);
     }
 }
 
 void Material::bind(VkCommandBuffer cmd) {
     if (m_descriptorSet != VK_NULL_HANDLE) {
         VkPipelineLayout layout = m_shader->getLayout()->getPipelineLayout();
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 1, 1, &m_descriptorSet, 0, nullptr);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 2, 1, &m_descriptorSet, 0, nullptr);
     }
 }
 
