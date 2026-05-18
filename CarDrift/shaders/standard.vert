@@ -11,6 +11,7 @@ layout(location = 2) out vec4 outTangent;
 layout(location = 3) out vec2 outTexcoord0;
 layout(location = 4) out vec2 outTexcoord1;
 layout(location = 5) out vec4 outColor;
+layout(location = 6) out vec3 outViewPos;
 
 void main() {
 	uint index = gl_VertexIndex;
@@ -32,21 +33,26 @@ void main() {
 	if (HAS_SKINNING && (pc.attributeMask & FLAG_JOINT_INDEX) != 0 && (pc.attributeMask & FLAG_JOINT_WEIGHT) != 0) {
 		ivec4 jointIndex = jointIndices[index];
 		vec4 jointWeight = jointWeights[index];
+
+		skinMat = (jointWeight.x * jointMatrices[jointIndex.x]) +
+				  (jointWeight.y * jointMatrices[jointIndex.y]) +
+				  (jointWeight.z * jointMatrices[jointIndex.z]) +
+				  (jointWeight.w * jointMatrices[jointIndex.w]);
 	}
 
 	mat4 modelMat = pc.worldMatrix * skinMat;
 	vec4 worldPos = modelMat * vec4(inPosition, 1.0);
-
 	mat3 normalMat = transpose(inverse(mat3(modelMat)));
-	vec3 worldNormal = normalize(normalMat * inNormal);
-	vec4 worldTangent = vec4(normalize(normalMat * inTangent.xyz), inTangent.w);
+
+	vec4 viewPos = global.view * worldPos;
 
 	outWorldPos = worldPos.xyz;
-	outNormal = worldNormal;
-	outTangent = worldTangent;
+	outNormal = normalize(normalMat * inNormal);
+	outTangent = vec4(normalize(normalMat * inTangent.xyz), inTangent.w);
 	outTexcoord0 = inTexcoord0;
 	outTexcoord1 = inTexcoord1;
 	outColor = inColor;
+	outViewPos = viewPos.xyz;
 
-	gl_Position = global.proj * global.view * worldPos;
+	gl_Position = global.proj * viewPos;
 }

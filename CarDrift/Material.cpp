@@ -22,9 +22,10 @@ void Material::bind(VkCommandBuffer cmd) {
 
 StandardMaterial::StandardMaterial(RenderContext* context, Shader* shader)
     : Material(context, shader), 
-      m_albedoMap(context->getWhiteTexture()),
+      m_albedoMap(context->getWhiteTextureSrgb()),
       m_normalMap(context->getFlatNormalTexture()),
-      m_mrMap(context->getBlackTexture()) {
+      m_mrMap(context->getWhiteTextureUnorm()),
+      m_aoMap(context->getWhiteTextureUnorm()) {
     VkBufferCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     createInfo.size = sizeof(PBRMaterialParams);
@@ -64,7 +65,7 @@ StandardMaterial& StandardMaterial::setRoughness(float r) {
 }
 
 StandardMaterial& StandardMaterial::setAlbedoMap(Texture* tex) {
-    m_albedoMap = tex ? tex : m_context->getWhiteTexture();
+    m_albedoMap = tex ? tex : m_context->getWhiteTextureSrgb();
     m_dirty = true;
     return *this;
 }
@@ -76,7 +77,13 @@ StandardMaterial& StandardMaterial::setNormalMap(Texture* tex) {
 }
 
 StandardMaterial& StandardMaterial::setMetallicRoughnessMap(Texture* tex) {
-    m_mrMap = tex ? tex : m_context->getBlackTexture();
+    m_mrMap = tex ? tex : m_context->getWhiteTextureUnorm();
+    m_dirty = true;
+    return *this;
+}
+
+StandardMaterial& StandardMaterial::setAOMap(Texture* tex) {
+    m_aoMap = tex ? tex : m_context->getWhiteTextureUnorm();
     m_dirty = true;
     return *this;
 }
@@ -96,7 +103,7 @@ void StandardMaterial::updateDescriptorSet() {
     memcpy(data, &m_params, sizeof(PBRMaterialParams));
     vmaUnmapMemory(m_context->getAllocator(), m_allocation);
 
-    std::vector<VkWriteDescriptorSet> writes(4);
+    std::vector<VkWriteDescriptorSet> writes(5);
 
     // Binding 0: Uniform Buffer
     VkDescriptorBufferInfo bufferInfo = {};
@@ -149,6 +156,19 @@ void StandardMaterial::updateDescriptorSet() {
     writes[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     writes[3].descriptorCount = 1;
     writes[3].pImageInfo = &mrImageInfo;
+
+    // Binding 4: Ambient Occlusion Map
+    VkDescriptorImageInfo aoImageInfo = {};
+    aoImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    aoImageInfo.imageView = m_aoMap->getImageView();
+    aoImageInfo.sampler = m_aoMap->getSampler();
+
+    writes[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writes[4].dstSet = m_descriptorSet;
+    writes[4].dstBinding = 4;
+    writes[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    writes[4].descriptorCount = 1;
+    writes[4].pImageInfo = &aoImageInfo;
 
     vkUpdateDescriptorSets(
         m_context->getDevice(),

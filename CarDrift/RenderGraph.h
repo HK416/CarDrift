@@ -46,7 +46,10 @@ struct GlobalData {
 
     uint32_t lightCount = 0;
     float ambientIntensity = 0.2f;
-    uint32_t _padding1[2];
+    float gamma = 2.2f;
+    uint32_t cascadeCount = 0;
+
+    glm::vec4 cascadeSplits;
 
     static const uint32_t MAX_SHADOW_MAPS = 4;
     glm::mat4 shadowMatrices[MAX_SHADOW_MAPS];

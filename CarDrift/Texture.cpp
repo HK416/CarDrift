@@ -194,7 +194,15 @@ void Texture::createImageView(uint32_t layerCount, uint32_t mipLevels) {
     VkImageViewCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     createInfo.image = m_image;
-    createInfo.viewType = (layerCount == 6) ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
+    
+    if (layerCount == 6) {
+        createInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+    } else if (layerCount > 1) {
+        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+    } else {
+        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    }
+
     createInfo.format = m_format;
     createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     createInfo.subresourceRange.levelCount = mipLevels;

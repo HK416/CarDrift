@@ -43,6 +43,7 @@ public:
     StandardMaterial& setAlbedoMap(Texture* tex);
     StandardMaterial& setNormalMap(Texture* tex);
     StandardMaterial& setMetallicRoughnessMap(Texture* tex);
+    StandardMaterial& setAOMap(Texture* tex);
 
     virtual void bind(VkCommandBuffer cmd) override;
 
@@ -52,10 +53,10 @@ protected:
 private:
     struct PBRMaterialParams {
         glm::vec4 albedoFactor{1.0f, 1.0f, 1.0f, 1.0f};
-        float metallicFactor{1.0f};
         float roughnessFactor{1.0f};
+        float metallicFactor{1.0f};
+        float alphaCutoff{0.5f};
         float aoFactor{1.0f};
-        uint32_t _padding0;
     };
 
     PBRMaterialParams m_params;
@@ -63,6 +64,7 @@ private:
     Texture* m_albedoMap; // 소유하지 않는 클래스 맴버 (장면 또는 엔진이 관리함)
     Texture* m_normalMap; // 소유하지 않는 클래스 맴버 (장면 또는 엔진이 관리함)
     Texture* m_mrMap;     // 소유하지 않는 클래스 맴버 (장면 또는 엔진이 관리함)
+    Texture* m_aoMap;     // 소유하지 않는 클래스 맴버 (장면 또는 엔진이 관리함)
 
     VkBuffer m_uniformBuffer = VK_NULL_HANDLE;
     VmaAllocation m_allocation = VK_NULL_HANDLE;

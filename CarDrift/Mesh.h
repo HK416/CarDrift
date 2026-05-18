@@ -12,6 +12,7 @@ enum class VertexAttribute : uint32_t {
     Color = 5,
     JointIndex = 6,
     JointWeight = 7,
+    BoneMatrix = 8,
     Count
 };
 
@@ -67,6 +68,7 @@ public:
     MeshBuilder& setColors(const std::vector<glm::vec4>& colors);
     MeshBuilder& setJointIndices(const std::vector<glm::ivec4>& indices);
     MeshBuilder& setJointWeights(const std::vector<glm::vec4>& weights);
+    MeshBuilder& setBoneMatrices(const std::vector<glm::mat4>& matrices);
 
     MeshBuilder& setIndices(const std::vector<uint32_t>& indices);
     MeshBuilder& addSubMesh(uint32_t start, uint32_t count);
@@ -104,6 +106,7 @@ private:
     std::vector<glm::vec4> m_colors;
     std::vector<glm::ivec4> m_jointIndices;
     std::vector<glm::vec4> m_jointWeights;
+    std::vector<glm::mat4> m_boneMatrices;
 
     std::vector<uint32_t> m_indices;
     std::vector<SubMesh> m_subMeshes;

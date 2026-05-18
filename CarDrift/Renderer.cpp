@@ -59,9 +59,9 @@ RenderContext::RenderContext(GLFWwindow* window) {
 }
 
 RenderContext::~RenderContext() {
-    m_whiteTexture.reset();
+    m_whiteTextureSrgb.reset();
+    m_whiteTextureUnorm.reset();
     m_normalTexture.reset();
-    m_blackTexture.reset();
 
     if (m_globalLayout != VK_NULL_HANDLE) {
         vkDestroyDescriptorSetLayout(m_device, m_globalLayout, nullptr);
@@ -330,8 +330,8 @@ void RenderContext::createDescriptorPools() {
 void RenderContext::createDescriptorlLayouts() {
     // Geometry Descriptor Set Layout
     {
-        std::vector<VkDescriptorSetLayoutBinding> layoutBindings(8);
-        std::vector<VkDescriptorBindingFlags> bindingFlags(8, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);
+        std::vector<VkDescriptorSetLayoutBinding> layoutBindings(9);
+        std::vector<VkDescriptorBindingFlags> bindingFlags(9, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);
 
         for (size_t i = 0; i < layoutBindings.size(); ++i) {
             layoutBindings[i].binding = static_cast<uint32_t>(i);
@@ -358,17 +358,21 @@ void RenderContext::createDescriptorlLayouts() {
 
     // Global Descriptor Set Layout
     {
-        VkDescriptorSetLayoutBinding layoutBinding = {};
-        layoutBinding.binding = 0;
-        layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        layoutBinding.descriptorCount = 1;
-        layoutBinding.stageFlags =
-            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+        std::vector<VkDescriptorSetLayoutBinding> layoutBindings(2);
+        layoutBindings[0].binding = 0;
+        layoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        layoutBindings[0].descriptorCount = 1;
+        layoutBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        layoutBindings[1].binding = 1;
+        layoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        layoutBindings[1].descriptorCount = 1;
+        layoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
         VkDescriptorSetLayoutCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        createInfo.bindingCount = 1;
-        createInfo.pBindings = &layoutBinding;
+        createInfo.bindingCount = static_cast<uint32_t>(layoutBindings.size());
+        createInfo.pBindings = layoutBindings.data();
 
         if (vkCreateDescriptorSetLayout(m_device, &createInfo, nullptr, &m_globalLayout) != VK_SUCCESS) {
             throw std::runtime_error("Failed to create global descriptor set layout!");
@@ -377,9 +381,9 @@ void RenderContext::createDescriptorlLayouts() {
 }
 
 void RenderContext::createDefaultTextures(VkCommandBuffer cmd) {
-    m_whiteTexture = PlainTextureBuilder().setColor(0xFFFFFFFF, true).build(this, cmd);
+    m_whiteTextureSrgb = PlainTextureBuilder().setColor(0xFFFFFFFF, true).build(this, cmd);
+    m_whiteTextureUnorm = PlainTextureBuilder().setColor(0xFFFFFFFF, false).build(this, cmd);
     m_normalTexture = PlainTextureBuilder().setColor(0xFFFF8080, false).build(this, cmd);
-    m_blackTexture = PlainTextureBuilder().setColor(0xFF000000, false).build(this, cmd);
 }
 
 bool RenderContext::checkValidationLayerSupport() {
@@ -612,12 +616,17 @@ Renderer::Renderer(GLFWwindow* window) : m_window(window) {
     m_swapchain = std::make_unique<RenderSwapchain>(m_context.get(), m_window);
     m_commandManager = std::make_unique<CommandManager>(m_context.get(), m_swapchain->getImageViews().size());
 
-    createGlobalResources();
-
+    // 1. Essential textures
     VkCommandBuffer cmd = m_commandManager->beginSingleTimeCommands();
     m_context->createDefaultTextures(cmd);
     m_commandManager->endSingleTimeCommands(cmd, m_context->getGraphicsQueue());
     vkQueueWaitIdle(m_context->getGraphicsQueue());
+
+    // 2. Raw Shadow Resources
+    createShadowResources();
+
+    // 3. Global resources (Descriptor Sets)
+    createGlobalResources();
 
     m_sceneManager = std::make_unique<SceneManager>(this);
 
@@ -627,6 +636,10 @@ Renderer::Renderer(GLFWwindow* window) : m_window(window) {
 Renderer::~Renderer() {
     VkDevice device = m_context->getDevice();
     vkDeviceWaitIdle(device);
+
+    if (m_shadowSampler != VK_NULL_HANDLE) vkDestroySampler(device, m_shadowSampler, nullptr);
+    if (m_shadowImageView != VK_NULL_HANDLE) vkDestroyImageView(device, m_shadowImageView, nullptr);
+    if (m_shadowImage != VK_NULL_HANDLE) vmaDestroyImage(m_context->getAllocator(), m_shadowImage, m_shadowAllocation);
 
     for (const auto& res : m_globalResources) {
         vmaDestroyBuffer(m_context->getAllocator(), res.buffer, res.allocation);
@@ -791,7 +804,8 @@ void Renderer::transitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = image;
 
-    if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+    if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL || 
+        newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL) {
         barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
     } else {
         barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -800,7 +814,7 @@ void Renderer::transitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
 
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;
@@ -826,6 +840,12 @@ void Renderer::transitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
 
         sourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && 
+               newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL) {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     } else {
         throw std::invalid_argument("Unsupported layout transition!");
     }
@@ -838,6 +858,69 @@ void Renderer::transitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
         0, nullptr,
         1, &barrier
     );
+}
+
+void Renderer::createShadowResources() {
+    VkImageCreateInfo imageInfo = {};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = SHADOW_MAP_SIZE;
+    imageInfo.extent.height = SHADOW_MAP_SIZE;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = SHADOW_MAP_LAYERS;
+    imageInfo.format = VK_FORMAT_D32_SFLOAT;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VmaAllocationCreateInfo allocInfo = {};
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    allocInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+    if (vmaCreateImage(m_context->getAllocator(), &imageInfo, &allocInfo, &m_shadowImage, &m_shadowAllocation, nullptr) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create shadow map image!");
+    }
+
+    VkImageViewCreateInfo viewInfo = {};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = m_shadowImage;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+    viewInfo.format = VK_FORMAT_D32_SFLOAT;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = SHADOW_MAP_LAYERS;
+
+    if (vkCreateImageView(m_context->getDevice(), &viewInfo, nullptr, &m_shadowImageView) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create shadow map image view!");
+    }
+
+    VkSamplerCreateInfo samplerInfo = {};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.mipLodBias = 0.0f;
+    samplerInfo.maxAnisotropy = 1.0f;
+    samplerInfo.minLod = 0.0f;
+    samplerInfo.maxLod = 1.0f;
+    samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+
+    if (vkCreateSampler(m_context->getDevice(), &samplerInfo, nullptr, &m_shadowSampler) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create shadow map sampler!");
+    }
+
+    // Transition to READ_ONLY_OPTIMAL for initial binding
+    VkCommandBuffer cmd = m_commandManager->beginSingleTimeCommands();
+    transitionImageLayout(cmd, m_shadowImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+    m_commandManager->endSingleTimeCommands(cmd, m_context->getGraphicsQueue());
 }
 
 VkDescriptorSet Renderer::getGlobalDescriptorSet(uint32_t frameIndex) const {
@@ -900,14 +983,28 @@ void Renderer::createGlobalResources() {
         bufferInfo.buffer = m_globalResources[i].buffer;
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(GlobalData);
-        VkWriteDescriptorSet write = {};
-        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        write.dstSet = m_globalResources[i].descriptorSet;
-        write.dstBinding = 0;
-        write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        write.descriptorCount = 1;
-        write.pBufferInfo = &bufferInfo;
 
-        vkUpdateDescriptorSets(m_context->getDevice(), 1, &write, 0, nullptr);
+        VkDescriptorImageInfo shadowInfo = {};
+        shadowInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+        shadowInfo.imageView = m_shadowImageView;
+        shadowInfo.sampler = m_shadowSampler;
+
+        std::vector<VkWriteDescriptorSet> writes(2);
+        
+        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[0].dstSet = m_globalResources[i].descriptorSet;
+        writes[0].dstBinding = 0;
+        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        writes[0].descriptorCount = 1;
+        writes[0].pBufferInfo = &bufferInfo;
+
+        writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[1].dstSet = m_globalResources[i].descriptorSet;
+        writes[1].dstBinding = 1;
+        writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writes[1].descriptorCount = 1;
+        writes[1].pImageInfo = &shadowInfo;
+
+        vkUpdateDescriptorSets(m_context->getDevice(), static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
     }
 }

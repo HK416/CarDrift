@@ -28,9 +28,9 @@ public:
     VkDescriptorSet allocateDescriptorSet(VkDescriptorSetLayout layout);
 
     void createDefaultTextures(VkCommandBuffer cmd);
-    Texture* getWhiteTexture() const { return m_whiteTexture.get(); }
+    Texture* getWhiteTextureSrgb() const { return m_whiteTextureSrgb.get(); }
+    Texture* getWhiteTextureUnorm() const { return m_whiteTextureUnorm.get(); }
     Texture* getFlatNormalTexture() const { return m_normalTexture.get(); }
-    Texture* getBlackTexture() const { return m_blackTexture.get(); }
 
 private:
     void createRenderInstance();
@@ -70,9 +70,9 @@ private:
         "VK_LAYER_KHRONOS_validation"
     };
 
-    std::unique_ptr<Texture> m_whiteTexture;
+    std::unique_ptr<Texture> m_whiteTextureSrgb;
+    std::unique_ptr<Texture> m_whiteTextureUnorm;
     std::unique_ptr<Texture> m_normalTexture;
-    std::unique_ptr<Texture> m_blackTexture;
 };
 
 class RenderSwapchain {
@@ -157,9 +157,13 @@ public:
     VkDescriptorSet getGlobalDescriptorSet(uint32_t frameIndex) const;
     void updateGlobalBuffer(uint32_t frameIndex, const GlobalData& data);
 
+    VkImageView getShadowImageView() const { return m_shadowImageView; }
+    VkSampler getShadowSampler() const { return m_shadowSampler; }
+
 private:
     void createSyncObjects();
     void createGlobalResources();
+    void createShadowResources();
     void transitionImageLayout(
         VkCommandBuffer commandBuffer,
         VkImage image,
@@ -185,6 +189,14 @@ private:
         VkDescriptorSet descriptorSet;
     };
     std::vector<FrameResource> m_globalResources;
+
+    // Shadow Map Resources (Raw)
+    VkImage m_shadowImage = VK_NULL_HANDLE;
+    VmaAllocation m_shadowAllocation = VK_NULL_HANDLE;
+    VkImageView m_shadowImageView = VK_NULL_HANDLE;
+    VkSampler m_shadowSampler = VK_NULL_HANDLE;
+    static const uint32_t SHADOW_MAP_SIZE = 2048;
+    static const uint32_t SHADOW_MAP_LAYERS = 4;
 
     bool m_framebufferResized = false;
 };

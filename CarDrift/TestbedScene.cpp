@@ -40,8 +40,9 @@ void TestbedScene::onEnter() {
         {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
         {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
         {3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
+        {4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
     });
-    builder.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstantData));
+    builder.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstantData));
     addShaderLayout("Standard", builder.build(context));
 
 
@@ -55,6 +56,8 @@ void TestbedScene::onEnter() {
     // --- Materials ---
     auto material = std::make_unique<StandardMaterial>(context, getShader("Standard"));
     material->setAlbedo({1.0f, 0.5f, 0.3f, 1.0f});
+    material->setMetallic(1.0f);
+    material->setRoughness(1.0f);
     addMaterial("Standard", std::move(material));
     
     // --- Objects ---
@@ -96,7 +99,7 @@ void TestbedScene::render(RenderQueue& queue, float alpha) {
 
     Light dirLight;
     dirLight.lightType = (uint32_t)LightType::Directional;
-    dirLight.intensity = 1.0f;
+    dirLight.intensity = 2.5f;
     dirLight.yDir = -1.0f;
     queue.addLight(dirLight);
 
