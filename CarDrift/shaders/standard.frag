@@ -19,39 +19,30 @@ layout(location = 0) out vec4 outColor;
 // CSM (Cascaded Shadow Mapping)
 //---------------------------------------------------------
 float CalculateCSM(vec3 worldPos, vec3 N, vec3 L) {
-	uint cascadeIndex = 0;
-	for (uint i = 0; i < global.cascadeCount - 1; i++) {
-		if (abs(inViewPos.z) > global.cascadeSplits[i]) {
-			cascadeIndex = i + 1;
-		}
-	}
+    uint cascadeIndex = 0;
+    for (uint i = 0; i < global.cascadeCount - 1; i++) {
+        if (abs(inViewPos.z) > global.cascadeSplits[i]) {
+            cascadeIndex = i + 1;
+        }
+    }
 
-	// Calculate Light space coordinate
-	vec4 fragPosLightSpace = global.shadowMatrices[cascadeIndex] * vec4(worldPos, 1.0);
-	vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-	projCoords.xy = projCoords.xy * 0.5 + 0.5;
+    // Calculate Light space coordinate
+    vec4 fragPosLightSpace = global.shadowMatrices[cascadeIndex] * vec4(worldPos, 1.0);
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords.xy = projCoords.xy * 0.5 + 0.5;
 
-	if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0) {
-		return 0.0;
-	}
+    if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0) {
+        return 0.0;
+    }
 
-	// Shadow Bias
-	float bias = max(0.005 * (1.0 - dot(N, L)), 0.0005);
-	bias *= 1.0 / (global.cascadeSplits[cascadeIndex] * 0.5);
+    // Shadow Bias
+    float bias = max(0.005 * (1.0 - dot(N, L)), 0.0005);
+    bias *= 1.0 / (global.cascadeSplits[cascadeIndex] * 0.5);
+    
+    float currentDepth = projCoords.z;
+    float visibility = texture(shadowMap, vec4(projCoords.xy, cascadeIndex, currentDepth - bias));
 
-	float shadow = 0.0;
-	vec2 texelSize = 1.0 / textureSize(shadowMap, 0).xy;
-	float currentDepth = projCoords.z;
-
-	for (int x = -1; x <= 1; x++) {
-		for (int y = -1; y <= 1; y++) {
-			float pcfDepth = texture(shadowMap, vec3(projCoords.xy + vec2(x, y) * texelSize, cascadeIndex)).r;
-			shadow += (currentDepth - bias > pcfDepth) ? 1.0 : 0.0;
-		}
-	}
-
-	shadow /= 9.0;
-	return shadow;
+    return 1.0 - visibility;
 }
 
 void main() {
@@ -137,7 +128,7 @@ void main() {
 	vec3 ambient = vec3(0.03) * albedo * ao * global.ambientIntensity;
 	vec3 color = ambient + Lo;
 
-	color = color / (color + vec3(1.0));
+	color = ACESFilm(color);
 	color = pow(color, vec3(1.0 / global.gamma));
 
 	outColor = vec4(color, alpha);

@@ -56,8 +56,8 @@ void TestbedScene::onEnter() {
     // --- Materials ---
     auto material = std::make_unique<StandardMaterial>(context, getShader("Standard"));
     material->setAlbedo({1.0f, 0.5f, 0.3f, 1.0f});
-    material->setMetallic(1.0f);
-    material->setRoughness(1.0f);
+    material->setMetallic(0.125f);
+    material->setRoughness(0.8f);
     addMaterial("Standard", std::move(material));
     
     // --- Objects ---
@@ -187,11 +187,6 @@ void TestbedScene::createCubeMesh(VkCommandBuffer cmd) {
         {0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}  // Left
     };
 
-    // 4. Tangents & Colors (StandardOpaqueShader 파이프라인에서 레이아웃 검사를
-    // 통과하기 위한 더미 값)
-    std::vector<glm::vec4> tangents(24, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-    std::vector<glm::vec4> colors(24, glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-
     // 5. Indices (2 triangles per face)
     std::vector<uint32_t> indices = {
         0,  1,  2,  2,  3,  0,  // Front
@@ -207,9 +202,6 @@ void TestbedScene::createCubeMesh(VkCommandBuffer cmd) {
     builder.setPosition(positions)
         .setNormals(normals)
         .setTexcoord0(uvs)
-        .setTexcoord1(uvs)
-        .setTangents(tangents)
-        .setColors(colors)
         .setIndices(indices);
 
     VkDescriptorSetLayout layout = m_renderer->getContext()->getGeometryDescriptorSetLayout();

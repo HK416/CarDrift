@@ -31,7 +31,7 @@ layout(scalar, set = 1, binding = 0) uniform GlobalUniforms {
 	mat4 shadowMatrices[MAX_SHADOW_MAPS];
 } global;
 
-layout(set = 1, binding = 1) uniform sampler2DArray shadowMap;
+layout(set = 1, binding = 1) uniform sampler2DArrayShadow shadowMap;
 
 //---------------------------------------------------------
 // Set 2: Material Uniforms

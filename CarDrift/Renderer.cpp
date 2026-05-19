@@ -912,6 +912,8 @@ void Renderer::createShadowResources() {
     samplerInfo.minLod = 0.0f;
     samplerInfo.maxLod = 1.0f;
     samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+    samplerInfo.compareEnable = VK_TRUE;
+    samplerInfo.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 
     if (vkCreateSampler(m_context->getDevice(), &samplerInfo, nullptr, &m_shadowSampler) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create shadow map sampler!");
