@@ -82,8 +82,9 @@ void main() {
 		if (light.type == LIGHT_TYPE_DIRECTIONAL) {
 			L = normalize(-light.direction);
 
-			if (light.shadowIndex >= 0) {
-				shadow = CalculateCSM(inWorldPos, N, L);
+			if (light.castShadow > 0) {
+				// 아직 그림자 계산을 수행하지 않음.
+				// shadow = CalculateCSM(inWorldPos, N, L);
 			}
 		} else {
 			vec3 lightVec = light.position - inWorldPos;

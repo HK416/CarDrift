@@ -7,6 +7,29 @@
 #include "Renderer.h"
 #include "Texture.h"
 #include "GameCamera.h"
+#include "Light.h"
+
+class CubeObject : public MeshObject {
+public:
+    CubeObject() = delete;
+    CubeObject(const CubeObject&) = delete;
+    CubeObject& operator=(const CubeObject&) = delete;
+    CubeObject(Mesh* mesh, Material* material, uint32_t index)
+        : MeshObject(mesh, material), m_index(index) {}
+    virtual ~CubeObject() = default;
+
+protected:
+    virtual void onUpdate(float elapsedTimeSec) override {
+        static float totalTime = 0.0f;
+        totalTime += elapsedTimeSec;
+        getTransform().setRotation(
+            {totalTime * 5.0f + (float)m_index * 10.0f, totalTime * 3.0f, 0.0f}
+        );
+    }
+
+protected:
+    uint32_t m_index = 0;
+};
 
 TestbedScene::TestbedScene(Renderer* renderer, SceneManager* manager) 
     : GameScene(renderer, manager) {}
@@ -15,6 +38,14 @@ void TestbedScene::onEnter() {
     RenderContext* context = m_renderer->getContext();
     CommandManager* commandMgr = m_renderer->getCommandManager();
     VkCommandBuffer cmd = commandMgr->beginSingleTimeCommands();
+
+    // --- Lights ---
+    auto dirLight = std::make_unique<DirectionalLight>();
+    dirLight->getTransform().setRotation({50.0f, 0.0f, -30.0f});
+    dirLight->setColor({1.0f, 1.0f, 1.0f});
+    dirLight->setIntensity(2.5f);
+    m_rootObjects.push_back(dirLight.get());
+    m_allObjects.push_back(std::move(dirLight));
 
     // --- Cameras ---
     auto camera = std::make_unique<PerspectiveCamera>();
@@ -62,9 +93,10 @@ void TestbedScene::onEnter() {
     
     // --- Objects ---
     // 5x5 그리드로 큐브 배치
+    uint32_t cnt = 0;
     for (int x = -2; x <= 2; ++x) {
         for (int z = -2; z <= 2; ++z) {
-            auto cube = std::make_unique<MeshObject>(getMesh("Cube"), getMaterial("Standard"));
+            auto cube = std::make_unique<CubeObject>(getMesh("Cube"), getMaterial("Standard"), cnt++);
             cube->getTransform().setPosition({ (float)x * 2.0f, 0.0f, (float)z * 2.0f + 10.0f });
             
             m_rootObjects.push_back(cube.get());
@@ -77,17 +109,8 @@ void TestbedScene::onEnter() {
 }
 
 void TestbedScene::update(float elapsedTimeSec) {
-    static float totalTime = 0.0f;
-    totalTime += elapsedTimeSec;
-    
     for (size_t i = 0; i < m_rootObjects.size(); ++i) {
         auto* obj = m_rootObjects[i];
-        if (obj != m_mainCamera) {
-            // 각 큐브마다 약간씩 다른 회전 애니메이션 적용
-            obj->getTransform().setRotation(
-                {totalTime * 50.0f + (float)i * 10.0f, totalTime * 30.0f, 0.0f}
-            );
-        }
         obj->update(elapsedTimeSec);
     }
 }
@@ -96,12 +119,6 @@ void TestbedScene::render(RenderQueue& queue, float alpha) {
     if (m_mainCamera) {
         m_mainCamera->applyToQueue(queue);
     }
-
-    Light dirLight;
-    dirLight.lightType = (uint32_t)LightType::Directional;
-    dirLight.intensity = 2.5f;
-    dirLight.yDir = -1.0f;
-    queue.addLight(dirLight);
 
     for (auto* obj : m_rootObjects) {
         obj->render(queue);

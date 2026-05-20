@@ -659,7 +659,6 @@ void Renderer::drawFrame(float elapsedTimeSec) {
 
     // 1. Wait for the previous frame to finish
     vkWaitForFences(device, 1, &m_inFlightFence, VK_TRUE, UINT64_MAX);
-    vkResetFences(device, 1, &m_inFlightFence);
 
     // 2. Acquire an image from the swapchain
     uint32_t imageIndex;
@@ -671,6 +670,8 @@ void Renderer::drawFrame(float elapsedTimeSec) {
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         throw std::runtime_error("Failed to acquire swapchain image!");
     }
+    
+    vkResetFences(device, 1, &m_inFlightFence);
 
     // 3. Record commands
     VkCommandBuffer cmd = m_commandManager->getCommandBuffer(imageIndex);

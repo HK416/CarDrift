@@ -41,7 +41,7 @@ struct Light {
 
 	float spotInner;
 	float spotOuter;
-	int shadowIndex;
+	uint castShadow;
 	uint _pad0;
 };
 

@@ -3,33 +3,21 @@
 class Mesh;
 class Material;
 
-// --- Lights ---
+// --- Light Data ---
 //
-enum class LightType : uint32_t {
-    Directional = 0,
-    Point = 1,
-    Spot = 2,
-};
-
 struct Light {
-    float xPos = 0.0f;
-    float yPos = 0.0f;
-    float zPos = 0.0f;
+    glm::vec3 position{0.0f, 0.0f, 0.0f};
     uint32_t lightType = 0;
 
-    float xDir = 0.0f;
-    float yDir = -1.0f;
-    float zDir = 0.0f;
+    glm::vec3 direction{0.0f, 0.0f, 0.0f};
     float range = 0.0f;
 
-    float red = 1.0f;
-    float green = 1.0f;
-    float blue = 1.0f;
+    glm::vec3 color{1.0f, 1.0f, 1.0f};
     float intensity = 0.0f;
 
     float spotInner = 0.0f;
     float spotOuter = 0.0f;
-    int shadowIndex = -1; // Shadow Map Index (-1: None)
+    uint32_t castShadow = 0; // (None: 0)
     uint32_t _padding0;
 };
 
