@@ -4,6 +4,8 @@
 #include "ShaderLayout.h"
 
 RenderPipelineStates::RenderPipelineStates() {
+    vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
@@ -97,9 +99,6 @@ void GraphicsShader::setupRenderPipeline(
     const RenderPipelineStates& states,
     std::vector<VkPipelineShaderStageCreateInfo>& stages
 ) {
-    VkPipelineVertexInputStateCreateInfo vertexInputState = {};
-    vertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-
     VkPipelineViewportStateCreateInfo viewportState = {};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.viewportCount = 1;
@@ -124,7 +123,7 @@ void GraphicsShader::setupRenderPipeline(
     pipelineInfo.pNext = &renderingInfo;
     pipelineInfo.stageCount = static_cast<uint32_t>(stages.size());
     pipelineInfo.pStages = stages.data();
-    pipelineInfo.pVertexInputState = &vertexInputState;
+    pipelineInfo.pVertexInputState = &states.vertexInput;
     pipelineInfo.pInputAssemblyState = &states.inputAssembly;
     pipelineInfo.pViewportState = &viewportState;
     pipelineInfo.pRasterizationState = &states.rasterizer;
@@ -155,6 +154,58 @@ void ComputeShader::dispatch(
     uint32_t groupCountZ
 ) {
     vkCmdDispatch(cmd, groupCountX, groupCountY, groupCountZ);
+}
+
+ShadowShader::ShadowShader(
+    RenderContext* context, ShaderLayout* layout, uint32_t shaderKey
+)
+    : Shader(context, layout, shaderKey) {}
+
+void ShadowShader::bind(VkCommandBuffer cmd) {
+    if (m_pipeline != VK_NULL_HANDLE) {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+    }
+}
+
+void ShadowShader::setupShadowPipeline(
+    const RenderPipelineStates& states,
+    std::vector<VkPipelineShaderStageCreateInfo>& stages
+) {
+    VkPipelineViewportStateCreateInfo viewportState = {};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.scissorCount = 1;
+
+    std::vector<VkDynamicState> dynamicStates = {
+        VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR
+    };
+    VkPipelineDynamicStateCreateInfo dynamicState = {};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.pDynamicStates = dynamicStates.data();
+
+    VkPipelineRenderingCreateInfo renderingInfo = {};
+    renderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    renderingInfo.depthAttachmentFormat = RenderSwapchain::depthImageFormat;
+
+    VkGraphicsPipelineCreateInfo pipelineInfo = {};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.pNext = &renderingInfo;
+    pipelineInfo.stageCount = static_cast<uint32_t>(stages.size());
+    pipelineInfo.pStages = stages.data();
+    pipelineInfo.pVertexInputState = &states.vertexInput;
+    pipelineInfo.pInputAssemblyState = &states.inputAssembly;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &states.rasterizer;
+    pipelineInfo.pMultisampleState = &states.multisampling;
+    pipelineInfo.pDepthStencilState = &states.depthStencil;
+    pipelineInfo.pColorBlendState = &states.colorBlend;
+    pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.layout = m_layout->getPipelineLayout();
+
+    if (vkCreateGraphicsPipelines(m_context->getDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create shadow graphics pipeline!");
+    }
 }
 
 StandardShader::StandardShader(RenderContext* context, ShaderLayout* layout, uint32_t shaderKey) 
@@ -221,6 +272,75 @@ StandardShader::StandardShader(RenderContext* context, ShaderLayout* layout, uin
 
     // Create Graphics Pipeline
     setupRenderPipeline(states, shaderStages);
+
+    // Cleanup
+    vkDestroyShaderModule(m_context->getDevice(), vertModule, nullptr);
+    vkDestroyShaderModule(m_context->getDevice(), fragModule, nullptr);
+}
+
+StandardShadowShader::StandardShadowShader(
+    RenderContext* context, ShaderLayout* layout, uint32_t shaderKey
+)
+    : ShadowShader(context, layout, shaderKey) {
+    // Load Shader Binary
+    auto vertCode = readSPIRVFile("shaders/shadow.vert.spv");
+    auto fragCode = readSPIRVFile("shaders/shadow.frag.spv");
+
+    VkShaderModule vertModule = createShaderModule(vertCode);
+    VkShaderModule fragModule = createShaderModule(fragCode);
+
+    // Configuration Specialization Constants
+    struct SpecializationData {
+        VkBool32 hasSkinning;
+        VkBool32 isTransparent;
+        VkBool32 useCutoff;
+    } specData;
+
+    specData.hasSkinning = hasFeature(shaderKey, ShaderFeature::Skinned);
+    specData.isTransparent = hasFeature(shaderKey, ShaderFeature::Transparent);
+    specData.useCutoff = hasFeature(shaderKey, ShaderFeature::Cutoff);
+
+    std::vector<VkSpecializationMapEntry> mapEntries = {
+        {0, offsetof(SpecializationData, hasSkinning), sizeof(VkBool32)},
+        {1, offsetof(SpecializationData, isTransparent), sizeof(VkBool32)},
+        {2, offsetof(SpecializationData, useCutoff), sizeof(VkBool32)}
+    };
+
+    VkSpecializationInfo specInfo = {};
+    specInfo.mapEntryCount = static_cast<uint32_t>(mapEntries.size());
+    specInfo.pMapEntries = mapEntries.data();
+    specInfo.dataSize = sizeof(SpecializationData);
+    specInfo.pData = &specData;
+
+    // Setup Shader Stages
+    std::vector<VkPipelineShaderStageCreateInfo> shaderStages(2);
+
+    shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaderStages[0].module = vertModule;
+    shaderStages[0].pName = "main";
+    shaderStages[0].pSpecializationInfo = &specInfo;
+
+    shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaderStages[1].module = fragModule;
+    shaderStages[1].pName = "main";
+    shaderStages[1].pSpecializationInfo = &specInfo;
+
+    // Configuration Dynamic States
+    RenderPipelineStates states;
+    states.rasterizer.depthBiasEnable = VK_TRUE;
+    states.rasterizer.depthBiasClamp = 0.0f;
+    states.rasterizer.depthBiasConstantFactor = 1.25f;
+    states.rasterizer.depthBiasSlopeFactor = 1.75f;
+    states.rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+
+    if (specData.isTransparent) {
+        states.depthStencil.depthWriteEnable = VK_FALSE;
+    }
+
+    // Create Graphics Pipeline
+    setupShadowPipeline(states, shaderStages);
 
     // Cleanup
     vkDestroyShaderModule(m_context->getDevice(), vertModule, nullptr);

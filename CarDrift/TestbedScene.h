@@ -2,7 +2,8 @@
 #include "GameScene.h"
 #include "GameObject.h"
 
-class GameCamera;
+class PerspectiveCamera;
+class DirectionalLight;
 
 class TestbedScene : public GameScene {
 public:
@@ -20,7 +21,8 @@ private:
     void createCubeMesh(VkCommandBuffer cmd);
 
 protected:
-    GameCamera* m_mainCamera = nullptr;
+    PerspectiveCamera* m_mainCamera = nullptr;
+    DirectionalLight* m_mainDirLight = nullptr;
 
     std::vector<std::unique_ptr<GameObject>> m_allObjects;
     std::vector<GameObject*> m_rootObjects;

@@ -637,6 +637,10 @@ Renderer::~Renderer() {
     VkDevice device = m_context->getDevice();
     vkDeviceWaitIdle(device);
 
+    for (auto view : m_shadowLayerImageViews) {
+        if (view != VK_NULL_HANDLE) vkDestroyImageView(device, view, nullptr);
+    }
+
     if (m_shadowSampler != VK_NULL_HANDLE) vkDestroySampler(device, m_shadowSampler, nullptr);
     if (m_shadowImageView != VK_NULL_HANDLE) vkDestroyImageView(device, m_shadowImageView, nullptr);
     if (m_shadowImage != VK_NULL_HANDLE) vmaDestroyImage(m_context->getAllocator(), m_shadowImage, m_shadowAllocation);
@@ -681,55 +685,8 @@ void Renderer::drawFrame(float elapsedTimeSec) {
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     vkBeginCommandBuffer(cmd, &beginInfo);
 
-    // Transition image layout to COLOR_ATTACHMENT_OPTIMAL
-    transitionImageLayout(cmd, m_swapchain->getImages()[imageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    transitionImageLayout(cmd, m_swapchain->getDepthImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-
-    // 4. Begin Rendering (Dynamic Rendering)
-    VkClearValue clearColor = { {{0.1f, 0.1f, 0.2f, 1.0f}} };
-
-    VkRenderingAttachmentInfo colorAttachment{};
-    colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    colorAttachment.imageView = m_swapchain->getImageViews()[imageIndex];
-    colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachment.clearValue = clearColor;
-
-    VkRenderingAttachmentInfo depthAttachment{};
-    depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    depthAttachment.imageView = m_swapchain->getDepthImageView();
-    depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    depthAttachment.clearValue.depthStencil = {1.0f, 0};
-
-    VkRenderingInfo renderingInfo{};
-    renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-    renderingInfo.renderArea = { {0, 0}, m_swapchain->getExtent() };
-    renderingInfo.layerCount = 1;
-    renderingInfo.colorAttachmentCount = 1;
-    renderingInfo.pColorAttachments = &colorAttachment;
-    renderingInfo.pDepthAttachment = &depthAttachment;
-
-    vkCmdBeginRendering(cmd, &renderingInfo);
-    
-    VkViewport viewport = {};
-    viewport.width = static_cast<float>(m_swapchain->getExtent().width);
-    viewport.height = static_cast<float>(m_swapchain->getExtent().height);
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-    VkRect2D scissor = {};
-    scissor.extent = m_swapchain->getExtent();
-    vkCmdSetScissor(cmd, 0, 1, &scissor);
-
+    // 4. Delegate all rendering passes (prepare, shadow, main) to SceneManager
     m_sceneManager->render(cmd, imageIndex, m_swapchain->getExtent());
-
-    vkCmdEndRendering(cmd);
-
-    // Transition image layout to PRESENT_SRC_KHR
-    transitionImageLayout(cmd, m_swapchain->getImages()[imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     vkEndCommandBuffer(cmd);
 
@@ -847,6 +804,18 @@ void Renderer::transitionImageLayout(VkCommandBuffer commandBuffer, VkImage imag
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
         sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL &&
+               newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+        barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        sourceStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL &&
+               newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL) {
+        barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        sourceStage = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     } else {
         throw std::invalid_argument("Unsupported layout transition!");
     }
@@ -898,6 +867,25 @@ void Renderer::createShadowResources() {
 
     if (vkCreateImageView(m_context->getDevice(), &viewInfo, nullptr, &m_shadowImageView) != VK_SUCCESS) {
         throw std::runtime_error("Failed to create shadow map image view!");
+    }
+
+    // Create individual 2D layer image views for dynamic rendering
+    m_shadowLayerImageViews.resize(SHADOW_MAP_LAYERS);
+    for (uint32_t i = 0; i < SHADOW_MAP_LAYERS; ++i) {
+        VkImageViewCreateInfo layerViewInfo = {};
+        layerViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        layerViewInfo.image = m_shadowImage;
+        layerViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        layerViewInfo.format = VK_FORMAT_D32_SFLOAT;
+        layerViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        layerViewInfo.subresourceRange.baseMipLevel = 0;
+        layerViewInfo.subresourceRange.levelCount = 1;
+        layerViewInfo.subresourceRange.baseArrayLayer = i;
+        layerViewInfo.subresourceRange.layerCount = 1;
+
+        if (vkCreateImageView(m_context->getDevice(), &layerViewInfo, nullptr, &m_shadowLayerImageViews[i]) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create shadow map layer image view!");
+        }
     }
 
     VkSamplerCreateInfo samplerInfo = {};

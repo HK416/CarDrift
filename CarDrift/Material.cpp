@@ -5,8 +5,8 @@
 #include "Renderer.h"
 #include "Texture.h"
 
-Material::Material(RenderContext* context, Shader* shader, bool transparent) 
-    : m_context(context), m_shader(shader), m_isTransparent(transparent) {
+Material::Material(RenderContext* context, Shader* shader, Shader* shadowShader, bool transparent) 
+    : m_context(context), m_shader(shader), m_shadowShader(shadowShader), m_isTransparent(transparent) {
     auto layouts = m_shader->getLayout()->getDescriptorSetLayout();
     if (layouts.size() > 2) {
         m_descriptorSet = m_context->allocateDescriptorSet(layouts[2]);
@@ -20,8 +20,8 @@ void Material::bind(VkCommandBuffer cmd) {
     }
 }
 
-StandardMaterial::StandardMaterial(RenderContext* context, Shader* shader)
-    : Material(context, shader), 
+StandardMaterial::StandardMaterial(RenderContext* context, Shader* shader, Shader* shadowShader)
+    : Material(context, shader, shadowShader), 
       m_albedoMap(context->getWhiteTextureSrgb()),
       m_normalMap(context->getFlatNormalTexture()),
       m_mrMap(context->getWhiteTextureUnorm()),

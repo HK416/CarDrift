@@ -8,6 +8,7 @@
 #include "Texture.h"
 #include "GameCamera.h"
 #include "Light.h"
+#include "CascadeShadow.h"
 
 class CubeObject : public MeshObject {
 public:
@@ -41,9 +42,10 @@ void TestbedScene::onEnter() {
 
     // --- Lights ---
     auto dirLight = std::make_unique<DirectionalLight>();
-    dirLight->getTransform().setRotation({50.0f, 0.0f, -30.0f});
+    //dirLight->getTransform().setRotation({50.0f, 0.0f, -30.0f});
     dirLight->setColor({1.0f, 1.0f, 1.0f});
     dirLight->setIntensity(2.5f);
+    m_mainDirLight = dirLight.get();
     m_rootObjects.push_back(dirLight.get());
     m_allObjects.push_back(std::move(dirLight));
 
@@ -81,11 +83,14 @@ void TestbedScene::onEnter() {
     auto shader = std::make_unique<StandardShader>(context, getShaderLayout("Standard"), 0);
     addShader("Standard", std::move(shader));
 
+    auto shadowShader = std::make_unique<StandardShadowShader>(context, getShaderLayout("Standard"), 0);
+    addShader("StandardShadow", std::move(shadowShader));
+
     // --- Meshes ---
     createCubeMesh(cmd);
     
     // --- Materials ---
-    auto material = std::make_unique<StandardMaterial>(context, getShader("Standard"));
+    auto material = std::make_unique<StandardMaterial>(context, getShader("Standard"), getShader("StandardShadow"));
     material->setAlbedo({1.0f, 0.5f, 0.3f, 1.0f});
     material->setMetallic(0.125f);
     material->setRoughness(0.8f);
@@ -118,6 +123,23 @@ void TestbedScene::update(float elapsedTimeSec) {
 void TestbedScene::render(RenderQueue& queue, float alpha) {
     if (m_mainCamera) {
         m_mainCamera->applyToQueue(queue);
+    }
+
+    if (m_mainCamera && m_mainDirLight && m_mainDirLight->getLightData().castShadow > 0) {
+        auto cascadeResult = CascadeShadow::calculate(
+            m_mainCamera->getViewMatrix(),
+            m_mainCamera->getProjectionMatrix(),
+            m_mainDirLight->getLightData().direction,
+            m_mainCamera->getNearZ(),
+            m_mainCamera->getFarZ(),
+            m_mainCamera->getFOV(),
+            m_mainCamera->getAspectRatio()
+        );
+
+        queue.setCascadeData(cascadeResult.cascadeCount, cascadeResult.cascadeSplits);
+        for (uint32_t i = 0; i < cascadeResult.cascadeCount; ++i) {
+            queue.setShadowMatrix(i, cascadeResult.shadowMatrices[i]);
+        }
     }
 
     for (auto* obj : m_rootObjects) {

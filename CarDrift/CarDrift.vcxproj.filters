@@ -63,6 +63,9 @@
     <ClCompile Include="Light.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="CascadeShadow.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -110,6 +113,9 @@
     <ClInclude Include="Light.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="CascadeShadow.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\standard.frag" />
@@ -118,5 +124,7 @@
     <None Include="shaders\input_attributes.glsl" />
     <None Include="shaders\common.glsl" />
     <None Include="shaders\pbr_common.glsl" />
+    <None Include="shaders\shadow.vert" />
+    <None Include="shaders\shadow.frag" />
   </ItemGroup>
 </Project>

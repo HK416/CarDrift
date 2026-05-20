@@ -26,6 +26,11 @@ public:
     void setPerspective(float fovYDeg, float aspectRatio, float nearZ, float farZ);
     void setAspectRatio(float aspect);
 
+    float getFOV() const { return m_fov; }
+    float getAspectRatio() const { return m_aspectRatio; }
+    float getNearZ() const { return m_nearZ; }
+    float getFarZ() const { return m_farZ; }
+
     virtual const glm::mat4& getViewMatrix() const override;
     virtual const glm::mat4& getProjectionMatrix() const override;
 

@@ -40,7 +40,12 @@ struct GlobalData {
     glm::vec4 cascadeSplits;
 
     static const uint32_t MAX_SHADOW_MAPS = 4;
-    glm::mat4 shadowMatrices[MAX_SHADOW_MAPS];
+    glm::mat4 shadowMatrices[MAX_SHADOW_MAPS]{
+        glm::mat4{1.0f},
+        glm::mat4{1.0f},
+        glm::mat4{1.0f},
+        glm::mat4{1.0f},
+    };
 };
 
 // --- Rendering Data ---
@@ -61,6 +66,7 @@ public:
     void addLight(const Light& light);
     void setShadowMatrix(uint32_t index, const glm::mat4& matrix);
     void setAmbient(float intensity);
+    void setCascadeData(uint32_t count, const glm::vec4& splits);
 
     void addOpaque(const RenderItem& item);
     void addTransparent(const RenderItem& item);

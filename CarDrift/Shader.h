@@ -6,6 +6,7 @@ class ShaderLayout;
 struct PushConstantData {
     glm::mat4 worldMatrix{1.0f};
     uint32_t attributeMask = 0;
+    uint32_t cascadeIndex = 0;
 };
 
 enum class ShaderFeature : uint32_t {
@@ -24,6 +25,7 @@ inline bool hasFeature(uint32_t key, ShaderFeature feature) {
 }
 
 struct RenderPipelineStates {
+    VkPipelineVertexInputStateCreateInfo vertexInput = {};
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
     VkPipelineRasterizationStateCreateInfo rasterizer = {};
     VkPipelineMultisampleStateCreateInfo multisampling = {};
@@ -94,6 +96,25 @@ public:
     );
 };
 
+class ShadowShader : public Shader {
+public:
+    ShadowShader() = delete;
+    ShadowShader(const ShadowShader&) = delete;
+    ShadowShader& operator=(const ShadowShader&) = delete;
+    ShadowShader(
+        RenderContext* context, ShaderLayout* layout, uint32_t shaderKey
+    );
+    virtual ~ShadowShader() = default;
+
+    virtual void bind(VkCommandBuffer cmd) override;
+
+protected:
+    void setupShadowPipeline(
+        const RenderPipelineStates& states,
+        std::vector<VkPipelineShaderStageCreateInfo>& stages
+    );
+};
+
 class StandardShader : public GraphicsShader {
 public:
     StandardShader() = delete;
@@ -103,4 +124,15 @@ public:
         RenderContext* context, ShaderLayout* layout, uint32_t shaderKey
     );
     virtual ~StandardShader() = default;
+};
+
+class StandardShadowShader : public ShadowShader {
+public:
+    StandardShadowShader() = delete;
+    StandardShadowShader(const StandardShadowShader&) = delete;
+    StandardShadowShader& operator=(const StandardShadowShader&) = delete;
+    StandardShadowShader(
+        RenderContext* context, ShaderLayout* layout, uint32_t shaderKey
+    );
+    virtual ~StandardShadowShader() = default;
 };

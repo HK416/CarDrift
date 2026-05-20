@@ -9,12 +9,14 @@ public:
     Material() = delete;
     Material(const Material&) = delete;
     Material& operator=(const Material&) = delete;
-    Material(RenderContext* context, Shader* shader, bool transparent = false);
+    Material(RenderContext* context, Shader* shader, Shader* shadowShader = nullptr, bool transparent = false);
     virtual ~Material() = default;
 
     virtual void bind(VkCommandBuffer cmd);
 
     Shader* getShader() const { return m_shader; }
+    Shader* getShadowShader() const { return m_shadowShader; }
+    void setShadowShader(Shader* shadowShader) { m_shadowShader = shadowShader; }
     bool isTransparent() const { return m_isTransparent; }
 
 protected:
@@ -23,6 +25,7 @@ protected:
 protected:
     RenderContext* m_context; // 소유하지 않는 클래스 맴버
     Shader* m_shader;         // 소유하지 않는 클래스 맴버 (장면이 관리함)
+    Shader* m_shadowShader;   // 소유하지 않는 클래스 맴버 (장면이 관리함)
     
     VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
     bool m_isTransparent = false;
@@ -33,7 +36,7 @@ public:
     StandardMaterial() = delete;
     StandardMaterial(const StandardMaterial&) = delete;
     StandardMaterial& operator=(const StandardMaterial&) = delete;
-    StandardMaterial(RenderContext* context, Shader* shader);
+    StandardMaterial(RenderContext* context, Shader* shader, Shader* shadowShader = nullptr);
     virtual ~StandardMaterial();
 
     StandardMaterial& setAlbedo(const glm::vec4& color);

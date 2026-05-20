@@ -55,6 +55,7 @@ layout(set = 2, binding = 4) uniform sampler2D aoMap;
 layout(push_constant) uniform PushContants {
 	mat4 worldMatrix;
 	uint attributeMask;
+	uint cascadeIndex;
 } pc;
 
 #endif // COMMON_GLSL

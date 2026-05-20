@@ -7,6 +7,8 @@ void RenderQueue::clear() {
     m_opaqueItems.clear();
     m_transparentItems.clear();
     m_globalData.lightCount = 0;
+    m_globalData.cascadeCount = 0;
+    m_globalData.cascadeSplits = glm::vec4(0.0f);
     for (uint32_t i = 0; i < GlobalData::MAX_SHADOW_MAPS; ++i) {
         m_globalData.shadowMatrices[i] = glm::mat4(1.0f);
     }
@@ -33,6 +35,11 @@ void RenderQueue::setShadowMatrix(uint32_t index, const glm::mat4& matrix) {
 
 void RenderQueue::setAmbient(float intensity) {
     m_globalData.ambientIntensity = intensity;
+}
+
+void RenderQueue::setCascadeData(uint32_t count, const glm::vec4& splits) {
+    m_globalData.cascadeCount = count;
+    m_globalData.cascadeSplits = splits;
 }
 
 void RenderQueue::addOpaque(const RenderItem& item) {

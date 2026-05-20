@@ -80,6 +80,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CascadeShadow.cpp" />
     <ClCompile Include="GameCamera.cpp" />
     <ClCompile Include="InputManager.cpp" />
     <ClCompile Include="Light.cpp" />
@@ -98,6 +99,7 @@
     <ClCompile Include="Transform.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CascadeShadow.h" />
     <ClInclude Include="GameCamera.h" />
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="InputManager.h" />
@@ -119,6 +121,8 @@
     <None Include="shaders\global_types.glsl" />
     <None Include="shaders\input_attributes.glsl" />
     <None Include="shaders\pbr_common.glsl" />
+    <None Include="shaders\shadow.frag" />
+    <None Include="shaders\shadow.vert" />
     <None Include="shaders\standard.frag" />
     <None Include="shaders\standard.vert" />
   </ItemGroup>

@@ -159,17 +159,24 @@ public:
 
     VkImageView getShadowImageView() const { return m_shadowImageView; }
     VkSampler getShadowSampler() const { return m_shadowSampler; }
+    
+    RenderSwapchain* getSwapchain() const { return m_swapchain.get(); }
+    VkImage getShadowImage() const { return m_shadowImage; }
+    VkImageView getShadowLayerImageView(uint32_t layerIndex) const { return m_shadowLayerImageViews[layerIndex]; }
+    static uint32_t getShadowMapSize() { return SHADOW_MAP_SIZE; }
+    static uint32_t getShadowMapLayers() { return SHADOW_MAP_LAYERS; }
 
-private:
-    void createSyncObjects();
-    void createGlobalResources();
-    void createShadowResources();
     void transitionImageLayout(
         VkCommandBuffer commandBuffer,
         VkImage image,
         VkImageLayout oldLayout,
         VkImageLayout newLayout
     );
+
+private:
+    void createSyncObjects();
+    void createGlobalResources();
+    void createShadowResources();
 
 private:
     GLFWwindow* m_window = nullptr; // 소유하지 않는 클래스 맴버
@@ -195,6 +202,7 @@ private:
     VmaAllocation m_shadowAllocation = VK_NULL_HANDLE;
     VkImageView m_shadowImageView = VK_NULL_HANDLE;
     VkSampler m_shadowSampler = VK_NULL_HANDLE;
+    std::vector<VkImageView> m_shadowLayerImageViews;
     static const uint32_t SHADOW_MAP_SIZE = 2048;
     static const uint32_t SHADOW_MAP_LAYERS = 4;
 

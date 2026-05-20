@@ -103,6 +103,11 @@ public:
     void clear();
 
     void update(float elapsedTimeSec);
+
+    void prepareRenderQueue(uint32_t frameIndex, RenderQueue& queue);
+    void renderShadowPass(VkCommandBuffer cmd, uint32_t frameIndex, RenderQueue& queue);
+    void renderMainPass(VkCommandBuffer cmd, uint32_t frameIndex, RenderQueue& queue);
+
     void render(VkCommandBuffer commandBuffer, uint32_t frameIndex, VkExtent2D extent);
     void dispatchEvent(const Event& event);
 
