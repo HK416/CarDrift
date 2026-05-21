@@ -17,6 +17,8 @@ public:
     virtual void update(float elapsedTimeSec) override;
     virtual void render(RenderQueue& queue, float alpha) override;
 
+    virtual void onGUI() override;
+
 private:
     void createCubeMesh(VkCommandBuffer cmd);
 

@@ -13,30 +13,43 @@ void handleWindowSize(GLFWwindow* window, int width, int height) {
 }
 
 void handleKeyInput(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+
     auto renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
     auto sceneMgr = renderer->getSceneManager();
     sceneMgr->dispatchEvent(KeyEvent{key, scancode, action, mods});
 }
 
 void handleMouseButton(GLFWwindow* window, int button, int action, int mods) {
+    ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
+    if (ImGui::GetIO().WantCaptureMouse) {
+        return;
+    }
+
     auto renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
     auto sceneMgr = renderer->getSceneManager();
     sceneMgr->dispatchEvent(MouseButtonEvent{button, action, mods});
 }
 
 void handleScroll(GLFWwindow* window, double xoffset, double yoffset) {
+    ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
+
     auto renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
     auto sceneMgr = renderer->getSceneManager();
     sceneMgr->dispatchEvent(MouseScrollEvent{xoffset, yoffset});
 }
 
 void handleCursorPos(GLFWwindow* window, double xpos, double ypos) {
+    ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
+
     auto renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
     auto sceneMgr = renderer->getSceneManager();
     sceneMgr->dispatchEvent(CursorPosEvent{xpos, ypos});
 }
 
 void handleCharInput(GLFWwindow* window, unsigned int codepoint) {
+    ImGui_ImplGlfw_CharCallback(window, codepoint);
+
     auto renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
     auto sceneMgr = renderer->getSceneManager();
     sceneMgr->dispatchEvent(CharEvent{codepoint});

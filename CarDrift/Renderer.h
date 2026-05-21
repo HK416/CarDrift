@@ -177,6 +177,7 @@ private:
     void createSyncObjects();
     void createGlobalResources();
     void createShadowResources();
+    void initImGuiResources();
 
 private:
     GLFWwindow* m_window = nullptr; // 소유하지 않는 클래스 맴버

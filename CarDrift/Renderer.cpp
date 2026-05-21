@@ -628,6 +628,9 @@ Renderer::Renderer(GLFWwindow* window) : m_window(window) {
     // 3. Global resources (Descriptor Sets)
     createGlobalResources();
 
+    // 4. Initialize ImGui Context
+    initImGuiResources();
+
     m_sceneManager = std::make_unique<SceneManager>(this);
 
     createSyncObjects();
@@ -636,6 +639,10 @@ Renderer::Renderer(GLFWwindow* window) : m_window(window) {
 Renderer::~Renderer() {
     VkDevice device = m_context->getDevice();
     vkDeviceWaitIdle(device);
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     for (auto view : m_shadowLayerImageViews) {
         if (view != VK_NULL_HANDLE) vkDestroyImageView(device, view, nullptr);
@@ -655,6 +662,10 @@ Renderer::~Renderer() {
 }
 
 void Renderer::drawFrame(float elapsedTimeSec) {
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
     // 1. Update Scene
     m_sceneManager->update(elapsedTimeSec);
 
@@ -912,6 +923,63 @@ void Renderer::createShadowResources() {
     VkCommandBuffer cmd = m_commandManager->beginSingleTimeCommands();
     transitionImageLayout(cmd, m_shadowImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
     m_commandManager->endSingleTimeCommands(cmd, m_context->getGraphicsQueue());
+}
+
+void Renderer::initImGuiResources() {
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+
+    // Initialize GLFW Backend
+    ImGui_ImplGlfw_InitForVulkan(m_window, true);
+
+    // Initialize Vulkan backend
+    ImGui_ImplVulkan_InitInfo initInfo = {};
+    initInfo.Instance = m_context->getInstance();
+    initInfo.PhysicalDevice = m_context->getPhysicalDevice();
+    initInfo.Device = m_context->getDevice();
+    initInfo.QueueFamily = m_context->getGraphicsQueueFamilyIndex();
+    initInfo.Queue = m_context->getGraphicsQueue();
+    initInfo.PipelineCache = VK_NULL_HANDLE;
+    initInfo.DescriptorPool = m_context->getGuiDescriptorPool();
+    initInfo.Subpass = 0;
+    initInfo.MinImageCount = static_cast<uint32_t>(m_swapchain->getImageViews().size());
+    initInfo.ImageCount = static_cast<uint32_t>(m_swapchain->getImageViews().size());
+    initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    initInfo.Allocator = nullptr;
+    initInfo.CheckVkResultFn = [](VkResult err) {
+        if (err == 0) {
+            return;
+        }
+
+        spdlog::error("[ImGui Vulkan] Error: VkResult = {}", (int)err);
+    };
+
+    initInfo.UseDynamicRendering = true;
+    initInfo.PipelineRenderingCreateInfo = {};
+    initInfo.PipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    initInfo.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
+    initInfo.PipelineRenderingCreateInfo.pColorAttachmentFormats = &RenderSwapchain::swapchainImageFormat;
+    initInfo.PipelineRenderingCreateInfo.depthAttachmentFormat = RenderSwapchain::depthImageFormat;
+
+    ImGui_ImplVulkan_Init(&initInfo);
+
+    // Load Fonts
+    const std::filesystem::path fontPath = "assets/fonts/NotoSans-Bold.otf";
+    const float fontSize = 24.0f;
+
+    if (std::filesystem::exists(fontPath)) {
+        ImFont* font = io.Fonts->AddFontFromFileTTF(fontPath.string().c_str(), fontSize, nullptr, io.Fonts->GetGlyphRangesKorean());
+        if (font == nullptr) {
+            spdlog::warn("Failed to load ImGui font: {}", fontPath.string());
+        }
+    }
+
+    VkCommandBuffer cmd = m_commandManager->beginSingleTimeCommands();
+    ImGui_ImplVulkan_CreateFontsTexture();
+    m_commandManager->endSingleTimeCommands(cmd, m_context->getGraphicsQueue());
+
 }
 
 VkDescriptorSet Renderer::getGlobalDescriptorSet(uint32_t frameIndex) const {

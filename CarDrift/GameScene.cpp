@@ -59,6 +59,11 @@ void SceneManager::update(float elapsedTimeSec) {
         m_sceneStack[i]->update(elapsedTimeSec);
         m_sceneStack[i]->postUpdate(elapsedTimeSec);
     }
+
+    // 3. GUI
+    for (size_t i = firstIndex; i < m_sceneStack.size(); ++i) {
+        m_sceneStack[i]->onGUI();
+    }
 }
 
 void SceneManager::render(
@@ -285,6 +290,10 @@ void SceneManager::renderMainPass(VkCommandBuffer cmd, uint32_t frameIndex, Rend
     for (size_t i = firstIndex; i < m_sceneStack.size(); ++i) {
         m_sceneStack[i]->onPostRender(cmd);
     }
+
+    // Record ImGui Rendering Commands.
+    ImGui::Render();
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
     vkCmdEndRendering(cmd);
 

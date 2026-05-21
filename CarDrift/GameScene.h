@@ -46,6 +46,8 @@ public:
     virtual void render(RenderQueue& queue, float alpha) = 0;
     virtual void onPostRender(VkCommandBuffer commandBuffer) {}
 
+    virtual void onGUI() {}
+
     virtual bool isOpaque() const { return true; }
     virtual bool isPausedBehind() const { return true; }
     virtual bool shouldClearDepth() const { return false; }

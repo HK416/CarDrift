@@ -146,6 +146,27 @@ void TestbedScene::render(RenderQueue& queue, float alpha) {
         obj->render(queue);
     }
 }
+void TestbedScene::onGUI() {
+    ImGui::Begin("Debug Global Pass Configurations");
+
+    if (m_mainDirLight) {
+        ImGui::SeparatorText("Directional Light Settings");
+
+        glm::vec3 eulerDegrees = m_mainDirLight->getTransform().getEulerAngles();
+
+        if (ImGui::SliderFloat3("Light Rotation (Euler)", &eulerDegrees.x, -180.0f, 180.0f)) {
+            m_mainDirLight->getTransform().setRotation(eulerDegrees);
+        }
+
+        float intensity = m_mainDirLight->getLightData().intensity;
+        if (ImGui::SliderFloat("Light Intensity", &intensity, 0.0f, 10.0f)) {
+            m_mainDirLight->setIntensity(intensity);
+        }
+    }
+
+    ImGui::End();
+}
+
 void TestbedScene::createCubeMesh(VkCommandBuffer cmd) {
     // 1. Positions (24 vertices for 6 faces to have hard edges/unique normals
     // per face)
