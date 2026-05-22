@@ -70,6 +70,26 @@ void GameObject::removeChild(GameObject* child) {
     }
 }
 
+void GameObject::destroy() {
+    if (m_isPendingDestroy) {
+        return;
+    }
+    m_isPendingDestroy = true;
+
+    if (m_parent && !m_parent->isPendingDestroy()) {
+        removeParent();
+    }
+    m_parent = nullptr;
+
+    for (GameObject* child : m_children) {
+        if (child) {
+            child->destroy();
+        }
+    }
+
+    m_children.clear();
+}
+
 void GameObject::setWorldDirty() {
     m_worldDirty = true;
     for (auto child : m_children) {

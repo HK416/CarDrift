@@ -4,6 +4,7 @@
 
 class PerspectiveCamera;
 class DirectionalLight;
+class Renderer;
 
 class TestbedScene : public GameScene {
 public:
@@ -14,7 +15,6 @@ public:
     virtual ~TestbedScene() = default;
 
     virtual void onEnter() override;
-    virtual void update(float elapsedTimeSec) override;
     virtual void render(RenderQueue& queue, float alpha) override;
 
     virtual void onGUI() override;
@@ -25,7 +25,4 @@ private:
 protected:
     PerspectiveCamera* m_mainCamera = nullptr;
     DirectionalLight* m_mainDirLight = nullptr;
-
-    std::vector<std::unique_ptr<GameObject>> m_allObjects;
-    std::vector<GameObject*> m_rootObjects;
 };

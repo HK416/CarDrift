@@ -46,8 +46,8 @@ void TestbedScene::onEnter() {
     dirLight->setColor({1.0f, 1.0f, 1.0f});
     dirLight->setIntensity(2.5f);
     m_mainDirLight = dirLight.get();
-    m_rootObjects.push_back(dirLight.get());
-    m_allObjects.push_back(std::move(dirLight));
+    addRootObject(dirLight.get());
+    addGameObject(std::move(dirLight));
 
     // --- Cameras ---
     auto camera = std::make_unique<PerspectiveCamera>();
@@ -61,8 +61,8 @@ void TestbedScene::onEnter() {
     camera->getTransform().setRotation(glm::quat_cast(glm::inverse(lookAt)));
 
     m_mainCamera = camera.get();
-    m_rootObjects.push_back(camera.get());
-    m_allObjects.push_back(std::move(camera));
+    addRootObject(camera.get());
+    addGameObject(std::move(camera));
 
     // --- Shader Layouts ---
     ShaderLayoutBuilder builder;
@@ -111,13 +111,6 @@ void TestbedScene::onEnter() {
 
     commandMgr->endSingleTimeCommands(cmd, context->getGraphicsQueue());
     vkQueueWaitIdle(context->getGraphicsQueue());
-}
-
-void TestbedScene::update(float elapsedTimeSec) {
-    for (size_t i = 0; i < m_rootObjects.size(); ++i) {
-        auto* obj = m_rootObjects[i];
-        obj->update(elapsedTimeSec);
-    }
 }
 
 void TestbedScene::render(RenderQueue& queue, float alpha) {

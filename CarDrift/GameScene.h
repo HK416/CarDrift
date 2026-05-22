@@ -9,6 +9,7 @@ class Material;
 class Texture;
 class Shader;
 class ShaderLayout;
+class GameObject;
 
 // --- Events ---
 //
@@ -38,7 +39,7 @@ public:
     virtual bool onEvent(const Event& event) { return false; }
 
     virtual void preUpdate(float elapsedTimeSec) {}
-    virtual void update(float elapsedTimeSec) = 0;
+    virtual void update(float elapsedTimeSec);
     virtual void fixedUpdate(float fixedStep) {}
     virtual void postUpdate(float elapsedTimeSec) {}
 
@@ -51,6 +52,14 @@ public:
     virtual bool isOpaque() const { return true; }
     virtual bool isPausedBehind() const { return true; }
     virtual bool shouldClearDepth() const { return false; }
+
+    void addGameObject(std::unique_ptr<GameObject> obj);
+    void addRootObject(GameObject* obj);
+
+    GameObject* findObjectByName(const std::string& name) const;
+    std::vector<GameObject*> findObjectsByName(const std::string& name) const;
+
+    const std::vector<GameObject*>& getRootObjects() const { return m_rootObjects; }
 
     void addMesh(const std::string& name, std::unique_ptr<Mesh> mesh);
     Mesh* getMesh(const std::string& name) const;
@@ -70,6 +79,9 @@ public:
 protected:
     Renderer* m_renderer;
     SceneManager* m_manager;
+
+    std::vector<std::unique_ptr<GameObject>> m_allObjects;
+    std::vector<GameObject*> m_rootObjects;
 
     template<typename T>
     using ResourceCache = std::unordered_map<std::string, std::unique_ptr<T>>;

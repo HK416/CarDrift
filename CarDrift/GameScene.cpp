@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "GameScene.h"
+#include "GameObject.h"
 #include "RenderGraph.h"
 #include "Renderer.h"
 #include "Shader.h"
@@ -10,6 +11,36 @@
 
 GameScene::GameScene(Renderer* renderer, SceneManager* manager) 
     : m_renderer(renderer), m_manager(manager) {}
+
+void GameScene::update(float elapsedTimeSec) {
+    for (GameObject* rootObj : m_rootObjects) {
+        if (rootObj && !rootObj->isPendingDestroy()) {
+            rootObj->update(elapsedTimeSec);
+        }
+    }
+
+    m_rootObjects.erase(
+        std::remove_if(
+            m_rootObjects.begin(),
+            m_rootObjects.end(),
+            [](GameObject* obj) {
+                return obj == nullptr || obj->isPendingDestroy();
+            }
+        ),
+        m_rootObjects.end()
+    );
+
+    m_allObjects.erase(
+        std::remove_if(
+            m_allObjects.begin(),
+            m_allObjects.end(),
+            [](const std::unique_ptr<GameObject>& obj) {
+                return obj == nullptr || obj->isPendingDestroy();
+            }
+        ),
+        m_allObjects.end()
+    );
+}
 
 SceneManager::SceneManager(Renderer* renderer) : m_renderer(renderer) {}
 
@@ -427,6 +458,37 @@ void SceneManager::executeRenderQueue(
             vkCmdDrawIndexed(cmd, submesh.indexCount, 1, submesh.indexStart, 0, 0);
         }
     }
+}
+
+void GameScene::addGameObject(std::unique_ptr<GameObject> obj) {
+    if (obj) {
+        m_allObjects.push_back(std::move(obj));
+    }
+}
+
+void GameScene::addRootObject(GameObject* obj) {
+    if (obj) {
+        m_rootObjects.push_back(obj);
+    }
+}
+
+GameObject* GameScene::findObjectByName(const std::string& name) const {
+    for (const auto& obj : m_allObjects) {
+        if (obj && obj->getName() == name) {
+            return obj.get();
+        }
+    }
+    return nullptr;
+}
+
+std::vector<GameObject*> GameScene::findObjectsByName(const std::string& name) const {
+    std::vector<GameObject*> result;
+    for (const auto& obj : m_allObjects) {
+        if (obj && obj->getName() == name) {
+            result.push_back(obj.get());
+        }
+    }
+    return result;
 }
 
 void GameScene::addMesh(const std::string& name, std::unique_ptr<Mesh> mesh) {

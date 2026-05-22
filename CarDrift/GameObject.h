@@ -17,10 +17,17 @@ public:
     void update(float elapsedTimeSec);
     virtual void render(RenderQueue& queue);
 
+    void setName(const std::string& name) { m_name = name; }
+    const std::string& getName() const { return m_name; }
+
     void setParent(GameObject* newParent);
     void removeParent();
     void addChild(GameObject* child);
     void removeChild(GameObject* child);
+
+    virtual void destroy(); 
+    bool isPendingDestroy() const { return m_isPendingDestroy; }
+
 
 protected:
     void setWorldDirty();
@@ -28,6 +35,8 @@ protected:
     virtual void onUpdate(float elapsedTimeSec) {}
 
 protected:
+    std::string m_name = "GameObject";
+
     Transform m_transform;
     glm::mat4 m_worldMatrix{1.0f};
 
@@ -35,6 +44,7 @@ protected:
     std::vector<GameObject*> m_children; // 소유하지 않는 클래스 맴버
 
     bool m_worldDirty = true;
+    bool m_isPendingDestroy = false;
 };
 
 class MeshObject : public GameObject {
