@@ -9,14 +9,15 @@
 #include "GameCamera.h"
 #include "Light.h"
 #include "CascadeShadow.h"
+#include "GltfLoader.h"
 
 class CubeObject : public MeshObject {
 public:
     CubeObject() = delete;
     CubeObject(const CubeObject&) = delete;
     CubeObject& operator=(const CubeObject&) = delete;
-    CubeObject(Mesh* mesh, Material* material, uint32_t index)
-        : MeshObject(mesh, material), m_index(index) {}
+    CubeObject(Mesh* mesh, const std::vector<Material*>& materials, uint32_t index)
+        : MeshObject(mesh, materials), m_index(index) {}
     virtual ~CubeObject() = default;
 
 protected:
@@ -81,33 +82,35 @@ void TestbedScene::onEnter() {
 
     // --- Shaders ---
     auto shader = std::make_unique<StandardShader>(context, getShaderLayout("Standard"), 0);
-    addShader("Standard", std::move(shader));
+    addShader("StandardOpaque", std::move(shader));
 
     auto shadowShader = std::make_unique<StandardShadowShader>(context, getShaderLayout("Standard"), 0);
     addShader("StandardShadow", std::move(shadowShader));
 
     // --- Meshes ---
-    createCubeMesh(cmd);
+    // createCubeMesh(cmd);
+    auto obj = GltfLoader::load("assets/models/Fox.glb", this, context, cmd);
+    obj->getTransform().setScale(glm::vec3(0.01f));
     
     // --- Materials ---
-    auto material = std::make_unique<StandardMaterial>(context, getShader("Standard"), getShader("StandardShadow"));
-    material->setAlbedo({1.0f, 0.5f, 0.3f, 1.0f});
-    material->setMetallic(0.125f);
-    material->setRoughness(0.8f);
-    addMaterial("Standard", std::move(material));
+    //auto material = std::make_unique<StandardMaterial>(context, getShader("Standard"), getShader("StandardShadow"));
+    //material->setAlbedo({1.0f, 0.5f, 0.3f, 1.0f});
+    //material->setMetallic(0.125f);
+    //material->setRoughness(0.8f);
+    //addMaterial("Standard", std::move(material));
     
     // --- Objects ---
     // 5x5 그리드로 큐브 배치
-    uint32_t cnt = 0;
-    for (int x = -2; x <= 2; ++x) {
-        for (int z = -2; z <= 2; ++z) {
-            auto cube = std::make_unique<CubeObject>(getMesh("Cube"), getMaterial("Standard"), cnt++);
-            cube->getTransform().setPosition({ (float)x * 2.0f, 0.0f, (float)z * 2.0f + 10.0f });
-            
-            m_rootObjects.push_back(cube.get());
-            m_allObjects.push_back(std::move(cube));
-        }
-    }
+    //uint32_t cnt = 0;
+    //for (int x = -2; x <= 2; ++x) {
+    //    for (int z = -2; z <= 2; ++z) {
+    //        auto cube = std::make_unique<CubeObject>(getMesh("Cube"), std::vector{getMaterial("Standard")}, cnt++);
+    //        cube->getTransform().setPosition({ (float)x * 2.0f, 0.0f, (float)z * 2.0f + 10.0f });
+    //        
+    //        m_rootObjects.push_back(cube.get());
+    //        m_allObjects.push_back(std::move(cube));
+    //    }
+    //}
 
     commandMgr->endSingleTimeCommands(cmd, context->getGraphicsQueue());
     vkQueueWaitIdle(context->getGraphicsQueue());

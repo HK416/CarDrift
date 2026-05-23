@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "GameObject.h"
 #include "Material.h"
+#include "Mesh.h"
 
 GameObject::~GameObject() {
     removeParent();
@@ -22,6 +23,16 @@ void GameObject::update(float elapsedTimeSec) {
     // 3. 전파
     for (auto child : m_children) {
         child->update(elapsedTimeSec);
+    }
+}
+
+void GameObject::lateUpdate(float elapsedTimeSec) {
+    // 1. 객체 고유의 로직 수행
+    onLateUpdate(elapsedTimeSec);
+
+    // 2. 전파
+    for (auto child : m_children) {
+        child->lateUpdate(elapsedTimeSec);
     }
 }
 
@@ -106,26 +117,104 @@ void GameObject::updateWorldMatrix() {
     m_worldDirty = false;
 }
 
-MeshObject::MeshObject(Mesh* mesh, Material* material) 
-    : m_mesh(mesh), m_material(material) {}
+MeshObject::MeshObject(Mesh* mesh, const std::vector<Material*>& materials) 
+    : m_mesh(mesh), m_materials(materials) {}
 
 void MeshObject::render(RenderQueue& queue) {
-    if (!m_mesh || !m_material) {
+    if (!m_mesh || m_materials.empty()) {
         return;
     }
 
-    RenderItem item;
-    item.mesh = m_mesh;
-    item.material = m_material;
-    item.worldMatrix = m_worldMatrix;
+    size_t subMeshCount = std::max<size_t>(1, m_mesh->getSubMeshes().size());
 
-    if (m_material->isTransparent()) {
+    for (size_t i = 0; i < subMeshCount; ++i) {
+        Material* material = (i < m_materials.size()) ? m_materials[i] : m_materials[0];
+        if (!material) {
+            continue;
+        }
+
+        RenderItem item;
+        item.mesh = m_mesh;
+        item.material = material;
+        item.worldMatrix = m_worldMatrix;
+        item.submeshIndex = static_cast<uint32_t>(i);
+
         glm::vec3 camPos = queue.getGlobalData().cameraPos;
         item.sortDistance = glm::distance(camPos, getTransform().getPosition());
-        queue.addTransparent(item);
-    } else {
-        queue.addOpaque(item);
+
+        if (material->isTransparent()) {
+            queue.addTransparent(item);
+        } else {
+            queue.addOpaque(item);
+        }
     }
     
     GameObject::render(queue);
+}
+
+SkinnedMeshObject::SkinnedMeshObject(Mesh* mesh, const std::vector<Material*>& materials) 
+    : MeshObject(mesh, materials) {}
+
+void SkinnedMeshObject::render(RenderQueue& queue) {
+    if (!m_mesh || m_materials.empty()) {
+        return;
+    }
+
+    size_t subMeshCount = std::max<size_t>(1, m_mesh->getSubMeshes().size());
+
+    for (size_t i = 0; i < subMeshCount; ++i) {
+        Material* material =
+            (i < m_materials.size()) ? m_materials[i] : m_materials[0];
+        if (!material) {
+            continue;
+        }
+
+        RenderItem item;
+        item.mesh = m_mesh;
+        item.material = material;
+        item.worldMatrix = m_worldMatrix;
+        item.submeshIndex = static_cast<uint32_t>(i);
+        item.boneMatrices = m_finalBoneMatrices.empty() ? nullptr : &m_finalBoneMatrices;
+
+        glm::vec3 camPos = queue.getGlobalData().cameraPos;
+        item.sortDistance = glm::distance(camPos, getTransform().getPosition());
+
+        if (material->isTransparent()) {
+            queue.addTransparent(item);
+        } else {
+            queue.addOpaque(item);
+        }
+    }
+
+    GameObject::render(queue);
+}
+
+void SkinnedMeshObject::setBones(
+    const std::vector<GameObject*>& bones,
+    const std::vector<glm::mat4>& inverseBindMatrices
+) {
+    if (bones.size() != inverseBindMatrices.size()) {
+        throw std::invalid_argument("TODO!");
+    }
+
+    m_bones = bones;
+    m_inverseBindMatrices = inverseBindMatrices;
+    m_finalBoneMatrices.resize(m_bones.size(), glm::mat4(1.0f));
+}
+
+void SkinnedMeshObject::onLateUpdate(float elapsedTimeSec) {
+    MeshObject::onLateUpdate(elapsedTimeSec);
+
+    if (!m_bones.empty()) {
+        glm::mat4 invRootWorld = glm::inverse(getWorldMatrix());
+
+        for (size_t i = 0; i < m_bones.size(); ++i) {
+            if (m_bones[i]) {
+                glm::mat4 boneWorldMat = m_bones[i]->getWorldMatrix();
+                m_finalBoneMatrices[i] = invRootWorld * boneWorldMat * m_inverseBindMatrices[i];
+            } else {
+                m_finalBoneMatrices[i] = glm::mat4(1.0f);
+            }
+        }
+    }
 }

@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "Renderer.h"
 #include "Texture.h"
+#include "Mesh.h"
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -330,8 +331,9 @@ void RenderContext::createDescriptorPools() {
 void RenderContext::createDescriptorlLayouts() {
     // Geometry Descriptor Set Layout
     {
-        std::vector<VkDescriptorSetLayoutBinding> layoutBindings(9);
-        std::vector<VkDescriptorBindingFlags> bindingFlags(9, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);
+        const size_t numBinding = static_cast<size_t>(VertexAttribute::Count);
+        std::vector<VkDescriptorSetLayoutBinding> layoutBindings(numBinding);
+        std::vector<VkDescriptorBindingFlags> bindingFlags(numBinding, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);
 
         for (size_t i = 0; i < layoutBindings.size(); ++i) {
             layoutBindings[i].binding = static_cast<uint32_t>(i);
@@ -358,7 +360,7 @@ void RenderContext::createDescriptorlLayouts() {
 
     // Global Descriptor Set Layout
     {
-        std::vector<VkDescriptorSetLayoutBinding> layoutBindings(2);
+        std::vector<VkDescriptorSetLayoutBinding> layoutBindings(3);
         layoutBindings[0].binding = 0;
         layoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         layoutBindings[0].descriptorCount = 1;
@@ -368,6 +370,11 @@ void RenderContext::createDescriptorlLayouts() {
         layoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         layoutBindings[1].descriptorCount = 1;
         layoutBindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        layoutBindings[2].binding = 2;
+        layoutBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        layoutBindings[2].descriptorCount = 1;
+        layoutBindings[2].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
         VkDescriptorSetLayoutCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -654,6 +661,7 @@ Renderer::~Renderer() {
 
     for (const auto& res : m_globalResources) {
         vmaDestroyBuffer(m_context->getAllocator(), res.buffer, res.allocation);
+        vmaDestroyBuffer(m_context->getAllocator(), res.boneBuffer, res.boneAllocation);
     }
 
     vkDestroySemaphore(device, m_imageAvailableSemaphore, nullptr);
@@ -987,10 +995,32 @@ VkDescriptorSet Renderer::getGlobalDescriptorSet(uint32_t frameIndex) const {
 }
 
 void Renderer::updateGlobalBuffer(uint32_t frameIndex, const GlobalData& data) {
-    void* mappedData;
-    vmaMapMemory(m_context->getAllocator(), m_globalResources[frameIndex].allocation, &mappedData);
-    memcpy(mappedData, &data, sizeof(GlobalData));
-    vmaUnmapMemory(m_context->getAllocator(), m_globalResources[frameIndex].allocation);
+    memcpy(m_globalResources[frameIndex].mappedGlobalData, &data, sizeof(GlobalData));
+}
+
+void Renderer::updateBoneMatrices(uint32_t frameIndex, RenderQueue& queue) {
+    uint32_t currentBoneOffset = 0;
+
+    for (auto& item : queue.getOpaqueItems()) {
+        if (item.boneMatrices && !item.boneMatrices->empty()) {
+            size_t boneCount = item.boneMatrices->size();
+
+            if (currentBoneOffset + boneCount <= MAX_BONE_MATRICES) {
+                memcpy(
+                    &m_globalResources[frameIndex].mappedBoneData,
+                    item.boneMatrices->data(),
+                    boneCount * sizeof(glm::mat4)
+                );
+
+                item.boneOffset = currentBoneOffset;
+                currentBoneOffset += static_cast<uint32_t>(boneCount);
+            } else {
+                item.boneOffset = -1;
+            }
+        } else {
+            item.boneOffset = -1;
+        }
+    }
 }
 
 void Renderer::createSyncObjects() {
@@ -1015,47 +1045,83 @@ void Renderer::createGlobalResources() {
     m_globalResources.resize(imageCount);
 
     for (size_t i = 0; i < imageCount; ++i) {
-        VkBufferCreateInfo createInfo = {};
-        createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        createInfo.size = sizeof(GlobalData);
-        createInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+        // --- Global Data UBO ---
+        VkBufferCreateInfo uboCreateInfo = {};
+        uboCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        uboCreateInfo.size = sizeof(GlobalData);
+        uboCreateInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
-        VmaAllocationCreateInfo allocInfo = {};
-        allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        VmaAllocationCreateInfo uboAllocInfo = {};
+        uboAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        uboAllocInfo.flags =
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+            VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
+        VmaAllocationInfo uboAllocInfoData = {};
         VkResult result = vmaCreateBuffer(
             m_context->getAllocator(),
-            &createInfo,
-            &allocInfo,
+            &uboCreateInfo,
+            &uboAllocInfo,
             &m_globalResources[i].buffer,
             &m_globalResources[i].allocation,
-            nullptr
+            &uboAllocInfoData
         );
         if (result != VK_SUCCESS) {
             throw std::runtime_error(std::format("Failed to create global uniform buffer! (CODE:%X)", (uint32_t)result));
         }
+        m_globalResources[i].mappedGlobalData = uboAllocInfoData.pMappedData;
 
+        // --- Bone Matrices SSBO ---
+        VkBufferCreateInfo boneCreateInfo = {};
+        boneCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        boneCreateInfo.size = sizeof(glm::mat4) * MAX_BONE_MATRICES;
+        boneCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+
+        VmaAllocationCreateInfo boneAllocInfo = {};
+        boneAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        boneAllocInfo.flags =
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+            VMA_ALLOCATION_CREATE_MAPPED_BIT;
+
+        VmaAllocationInfo boneAllocInfoData = {};
+        result = vmaCreateBuffer(
+            m_context->getAllocator(),
+            &boneCreateInfo,
+            &boneAllocInfo,
+            &m_globalResources[i].boneBuffer,
+            &m_globalResources[i].boneAllocation,
+            &boneAllocInfoData
+        );
+        if (result != VK_SUCCESS) {
+            throw std::runtime_error(std::format("Failed to create global bone matrices buffer! (CODE:%X)", (uint32_t)result));
+        }
+        m_globalResources[i].mappedBoneData = boneAllocInfoData.pMappedData;
+
+        // --- Update Descriptor Set Write ---
         m_globalResources[i].descriptorSet = m_context->allocateDescriptorSet(m_context->getGlobalDescriptorSetLayout());
 
-        VkDescriptorBufferInfo bufferInfo = {};
-        bufferInfo.buffer = m_globalResources[i].buffer;
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(GlobalData);
+        VkDescriptorBufferInfo uboBufferInfo = {};
+        uboBufferInfo.buffer = m_globalResources[i].buffer;
+        uboBufferInfo.offset = 0;
+        uboBufferInfo.range = sizeof(GlobalData);
 
         VkDescriptorImageInfo shadowInfo = {};
         shadowInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
         shadowInfo.imageView = m_shadowImageView;
         shadowInfo.sampler = m_shadowSampler;
 
-        std::vector<VkWriteDescriptorSet> writes(2);
-        
+        VkDescriptorBufferInfo boneBufferInfo = {};
+        boneBufferInfo.buffer = m_globalResources[i].boneBuffer;
+        boneBufferInfo.offset = 0;
+        boneBufferInfo.range = VK_WHOLE_SIZE;
+
+        std::vector<VkWriteDescriptorSet> writes(3);
         writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writes[0].dstSet = m_globalResources[i].descriptorSet;
         writes[0].dstBinding = 0;
         writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         writes[0].descriptorCount = 1;
-        writes[0].pBufferInfo = &bufferInfo;
+        writes[0].pBufferInfo = &uboBufferInfo;
 
         writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writes[1].dstSet = m_globalResources[i].descriptorSet;
@@ -1063,6 +1129,13 @@ void Renderer::createGlobalResources() {
         writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         writes[1].descriptorCount = 1;
         writes[1].pImageInfo = &shadowInfo;
+
+        writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[2].dstSet = m_globalResources[i].descriptorSet;
+        writes[2].dstBinding = 2;
+        writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        writes[2].descriptorCount = 1;
+        writes[2].pBufferInfo = &boneBufferInfo;
 
         vkUpdateDescriptorSets(m_context->getDevice(), static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
     }

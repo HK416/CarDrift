@@ -64,6 +64,12 @@ StandardMaterial& StandardMaterial::setRoughness(float r) {
     return *this;
 }
 
+StandardMaterial& StandardMaterial::setAlphaCutoff(float alpha) {
+    m_params.alphaCutoff = alpha;
+    m_dirty = true;
+    return *this;
+}
+
 StandardMaterial& StandardMaterial::setAlbedoMap(Texture* tex) {
     m_albedoMap = tex ? tex : m_context->getWhiteTextureSrgb();
     m_dirty = true;

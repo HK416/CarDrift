@@ -101,23 +101,17 @@ void Texture::upload(VkCommandBuffer cmd, const TextureResourceData& data) {
         region.imageExtent.depth = 1;
         regions.push_back(region);
     } else {
-        uint32_t subIndex = 0;
-        for (uint32_t layer = 0; layer < data.layerCount; ++layer) {
-            for (uint32_t mip = 0; mip < data.mipLevels; ++mip) {
-                const auto& sub = data.subresources[subIndex];
-                VkBufferImageCopy region = {};
-                region.bufferOffset = sub.offset;
-                region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                region.imageSubresource.mipLevel = mip;
-                region.imageSubresource.baseArrayLayer = layer;
-                region.imageSubresource.layerCount = 1;
-                region.imageExtent.width = sub.width;
-                region.imageExtent.height = sub.height;
-                region.imageExtent.depth = 1;
-
-                regions.push_back(region);
-                subIndex += 1;
-            }
+        for (const auto& sub : data.subresources) {
+            VkBufferImageCopy region = {};
+            region.bufferOffset = sub.offset;
+            region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            region.imageSubresource.mipLevel = sub.mipLevel;
+            region.imageSubresource.baseArrayLayer = sub.arrayLayer;
+            region.imageSubresource.layerCount = 1;
+            region.imageExtent.width = sub.width;
+            region.imageExtent.height = sub.height;
+            region.imageExtent.depth = 1;
+            regions.push_back(region);
         }
     }
 
@@ -307,4 +301,179 @@ std::unique_ptr<Texture> CommonTextureBuilder::build(RenderContext* context, VkC
     texture->createSampler(resData.mipLevels, m_info.minFilter, m_info.magFilter, m_info.wrapU, m_info.wrapV);
 
     return texture;
+}
+
+MemoryTextureBuilder& MemoryTextureBuilder::setEncodedData(
+    const uint8_t* data, size_t size, bool srgb
+) {
+    m_info.bufferData.assign(data, data + size);
+    m_info.isEncoded = true;
+    m_info.isSRGB = srgb;
+    m_info.mipLevels = 1;
+    m_info.layerCount = 1;
+    return *this;
+}
+
+MemoryTextureBuilder& MemoryTextureBuilder::setRawData(
+    const uint8_t* pixels, uint32_t width, uint32_t height, VkFormat format
+) {
+    size_t dataSize = calculateFormatSize(width, height, format);
+
+    m_info.bufferData.assign(pixels, pixels + dataSize);
+    m_info.width = width;
+    m_info.height = height;
+    m_info.format = format;
+    m_info.isEncoded = false;
+
+    m_info.mipLevels = 1;
+    m_info.layerCount = 1;
+
+    m_info.subresources.clear();
+    SubresourceData subData = {};
+    subData.offset = 0;
+    subData.size = static_cast<uint32_t>(dataSize);
+    subData.width = width;
+    subData.height = height;
+    subData.mipLevel = 0;
+    subData.arrayLayer = 0;
+    m_info.subresources.push_back(subData);
+    return *this;
+}
+
+MemoryTextureBuilder& MemoryTextureBuilder::setRawDataWithSubresources(
+    const uint8_t* pixels,
+    size_t totalDataSize,
+    uint32_t width,
+    uint32_t height,
+    uint32_t mipLevels,
+    uint32_t layerCount,
+    VkFormat format,
+    const std::vector<SubresourceData>& subresources
+) {
+    m_info.bufferData.assign(pixels, pixels + totalDataSize);
+    m_info.width = width;
+    m_info.height = height;
+    m_info.mipLevels = mipLevels;
+    m_info.layerCount = layerCount;
+    m_info.format = format;
+    m_info.subresources = subresources;
+    m_info.isEncoded = false;
+    return *this;
+}
+
+MemoryTextureBuilder& MemoryTextureBuilder::setFilter(VkFilter min, VkFilter mag) {
+    m_info.minFilter = min;
+    m_info.magFilter = mag;
+    return *this;
+}
+
+MemoryTextureBuilder& MemoryTextureBuilder::setWrap(VkSamplerAddressMode u, VkSamplerAddressMode v) {
+    m_info.wrapU = u;
+    m_info.wrapV = v;
+    return *this;
+}
+
+std::unique_ptr<Texture> MemoryTextureBuilder::build(RenderContext* context, VkCommandBuffer cmd) {
+    TextureResourceData resData;
+
+    if (m_info.isEncoded) {
+        int texWidth, texHeight, texChannels;
+        stbi_uc* pixels = stbi_load_from_memory(
+            m_info.bufferData.data(),
+            static_cast<int>(m_info.bufferData.size()),
+            &texWidth,
+            &texHeight,
+            &texChannels,
+            STBI_rgb_alpha
+        );
+
+        if (!pixels) {
+            throw std::runtime_error("Memory image decoding failed!");
+        }
+
+        resData.width = static_cast<uint32_t>(texWidth);
+        resData.height = static_cast<uint32_t>(texHeight);
+        resData.mipLevels = 1;
+        resData.layerCount = 1;
+        resData.format = m_info.isSRGB ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
+
+        size_t imageSize = resData.width * resData.height * 4;
+        resData.pixelData.assign(pixels, pixels + imageSize);
+
+        SubresourceData subData = {};
+        subData.offset = 0;
+        subData.size = static_cast<uint32_t>(imageSize);
+        subData.width = resData.width;
+        subData.height = resData.height;
+        subData.mipLevel = 0;
+        subData.arrayLayer = 0;
+        resData.subresources.push_back(subData);
+
+        stbi_image_free(pixels);
+    } else {
+        if (m_info.bufferData.empty()) {
+            throw std::runtime_error("Invalid Raw Data!");
+        }
+
+        resData.width = m_info.width;
+        resData.height = m_info.height;
+        resData.mipLevels = m_info.mipLevels;
+        resData.layerCount = m_info.layerCount;
+        resData.format = m_info.format;
+        resData.pixelData = m_info.bufferData;
+        resData.subresources = m_info.subresources;
+    }
+
+    auto texture = std::make_unique<Texture>(context);
+    texture->upload(cmd, resData);
+    texture->createImageView(resData.layerCount, resData.mipLevels);
+    texture->createSampler(resData.mipLevels, m_info.minFilter, m_info.magFilter, m_info.wrapU, m_info.wrapV);
+
+    return texture;
+}
+
+size_t MemoryTextureBuilder::calculateFormatSize(uint32_t width, uint32_t height, VkFormat format) const {
+    switch (format) {
+        case VK_FORMAT_R8_UNORM:            return width * height * 1;
+        case VK_FORMAT_R8G8_UNORM:          return width * height * 2;
+        case VK_FORMAT_R8G8B8_UNORM:
+        case VK_FORMAT_R8G8B8_SRGB:         return width * height * 3;
+        case VK_FORMAT_R8G8B8A8_UNORM:
+        case VK_FORMAT_R8G8B8A8_SRGB:
+        case VK_FORMAT_B8G8R8A8_UNORM:
+        case VK_FORMAT_B8G8R8A8_SRGB:       return width * height * 4;
+        case VK_FORMAT_R16G16B16A16_SFLOAT: return width * height * 8;
+        case VK_FORMAT_R32G32B32A32_SFLOAT: return width * height * 16;
+
+        // BC1, BC4 - 8byte per block
+        case VK_FORMAT_BC1_RGB_UNORM_BLOCK:
+        case VK_FORMAT_BC1_RGB_SRGB_BLOCK:
+        case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
+        case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
+        case VK_FORMAT_BC4_UNORM_BLOCK:
+        case VK_FORMAT_BC4_SNORM_BLOCK: {
+            uint32_t blocksX = (width + 3) / 4;
+            uint32_t blocksY = (height + 3) / 4;
+            return blocksX * blocksY * 8;
+        }
+    
+        // BC2, BC3, BC5, BC6H, BC7 - 16byte per block
+        case VK_FORMAT_BC2_UNORM_BLOCK:
+        case VK_FORMAT_BC2_SRGB_BLOCK:
+        case VK_FORMAT_BC3_UNORM_BLOCK:
+        case VK_FORMAT_BC3_SRGB_BLOCK:
+        case VK_FORMAT_BC5_UNORM_BLOCK:
+        case VK_FORMAT_BC5_SNORM_BLOCK:
+        case VK_FORMAT_BC6H_UFLOAT_BLOCK:
+        case VK_FORMAT_BC6H_SFLOAT_BLOCK:
+        case VK_FORMAT_BC7_UNORM_BLOCK:
+        case VK_FORMAT_BC7_SRGB_BLOCK: {
+            uint32_t blocksX = (width + 3) / 4;
+            uint32_t blocksY = (height + 3) / 4;
+            return blocksX * blocksY * 16;
+        }
+
+        default:
+            throw std::runtime_error("Unknown Texture Format...");
+    };
 }

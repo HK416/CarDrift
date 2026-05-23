@@ -42,6 +42,7 @@ public:
     StandardMaterial& setAlbedo(const glm::vec4& color);
     StandardMaterial& setMetallic(float m);
     StandardMaterial& setRoughness(float r);
+    StandardMaterial& setAlphaCutoff(float alpha);
 
     StandardMaterial& setAlbedoMap(Texture* tex);
     StandardMaterial& setNormalMap(Texture* tex);

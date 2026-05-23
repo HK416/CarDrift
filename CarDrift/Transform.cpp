@@ -1,6 +1,39 @@
 #include "stdafx.h"
 #include "Transform.h"
 
+void Transform::setFromMatrix(const glm::mat4& matrix) {
+    m_position = glm::vec3(matrix[3]);
+
+    m_scale = glm::vec3(
+        glm::length(glm::vec3(matrix[0])),
+        glm::length(glm::vec3(matrix[1])),
+        glm::length(glm::vec3(matrix[2]))
+    );
+
+    glm::mat3 rotMat;
+
+    if (m_scale.x > 0.00001f) {
+        rotMat[0] = glm::vec3(matrix[0]) / m_scale.x;
+    } else {
+        rotMat[0] = glm::vec3(1.0f, 0.0f, 0.0f);
+    }
+
+    if (m_scale.y > 0.00001f) {
+        rotMat[1] = glm::vec3(matrix[1]) / m_scale.y;
+    } else {
+        rotMat[1] = glm::vec3(0.0f, 1.0f, 0.0f);
+    }
+
+    if (m_scale.z > 0.00001f) {
+        rotMat[2] = glm::vec3(matrix[2]) / m_scale.z;
+    } else {
+        rotMat[2] = glm::vec3(0.0f, 0.0f, 1.0f);
+    }
+
+    m_rotation = glm::quat_cast(rotMat);
+    setDirty();
+}
+
 void Transform::setPosition(const glm::vec3& pos) {
     m_position = pos;
     m_dirty = true;

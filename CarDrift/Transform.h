@@ -10,6 +10,8 @@ private:
     mutable bool m_dirty = true;
 
 public:
+    void setFromMatrix(const glm::mat4& matrix);
+
     void setPosition(const glm::vec3& pos);
     void setRotation(const glm::quat& rot);
     void setRotation(const glm::vec3& eulerDegrees);

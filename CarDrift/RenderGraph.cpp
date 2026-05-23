@@ -55,13 +55,11 @@ void RenderQueue::sort() {
         m_opaqueItems.begin(),
         m_opaqueItems.end(),
         [](const RenderItem& a, const RenderItem& b) {
-            if (a.material != b.material) {
-                if (a.material->getShader() != b.material->getShader()) {
-                    return a.material->getShader() < b.material->getShader();
-                }
-                return a.material < b.material;
-            }
-            return a.sortDistance < b.sortDistance;
+            Shader* shaderA = a.material ? a.material->getShader() : nullptr;
+            Shader* shaderB = b.material ? b.material->getShader() : nullptr;
+
+            return std::tie(shaderA, a.material, a.sortDistance) <
+                   std::tie(shaderB, b.material, b.sortDistance);
         }
     );
 

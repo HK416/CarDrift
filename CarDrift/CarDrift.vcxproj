@@ -82,6 +82,7 @@
   <ItemGroup>
     <ClCompile Include="CascadeShadow.cpp" />
     <ClCompile Include="GameCamera.cpp" />
+    <ClCompile Include="GltfLoader.cpp" />
     <ClCompile Include="InputManager.cpp" />
     <ClCompile Include="Light.cpp" />
     <ClCompile Include="main.cpp" />
@@ -102,6 +103,7 @@
     <ClInclude Include="CascadeShadow.h" />
     <ClInclude Include="GameCamera.h" />
     <ClInclude Include="GameObject.h" />
+    <ClInclude Include="GltfLoader.h" />
     <ClInclude Include="InputManager.h" />
     <ClInclude Include="Light.h" />
     <ClInclude Include="Material.h" />

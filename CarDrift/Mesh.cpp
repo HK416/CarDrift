@@ -85,11 +85,6 @@ MeshBuilder& MeshBuilder::setJointWeights(const std::vector<glm::vec4>& weights)
     return *this;
 }
 
-MeshBuilder& MeshBuilder::setBoneMatrices(const std::vector<glm::mat4>& matrices) {
-    m_boneMatrices = matrices;
-    return *this;
-}
-
 MeshBuilder& MeshBuilder::setIndices(const std::vector<uint32_t>& indices) {
     m_indices = indices;
     return *this;
@@ -200,18 +195,6 @@ std::unique_ptr<Mesh> MeshBuilder::build(
             VertexAttribute::JointWeight,
             m_jointWeights.data(),
             m_jointWeights.size() * sizeof(glm::vec4)
-        );
-    }
-
-    // Attribute Bone Matrix
-    if (!m_boneMatrices.empty()) {
-        upload(
-            context,
-            cmd,
-            mesh.get(),
-            VertexAttribute::BoneMatrix,
-            m_boneMatrices.data(),
-            m_boneMatrices.size() * sizeof(glm::mat4)
         );
     }
 

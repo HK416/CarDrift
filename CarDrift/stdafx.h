@@ -25,6 +25,14 @@
 #include <spdlog/fmt/ostr.h>
 
 #include <stb_image.h>
+#include <ktx.h>
+#include <ktxvulkan.h>
+
+#include <fastgltf/core.hpp>
+#include <fastgltf/types.hpp>
+#include <fastgltf/tools.hpp>
+#include <fastgltf/glm_element_traits.hpp>
+
 
 #include <algorithm>
 #include <cstdint>
@@ -36,6 +44,7 @@
 #include <memory>
 #include <queue>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <variant>
 #include <vector>

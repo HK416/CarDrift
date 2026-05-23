@@ -14,6 +14,5 @@ layout(scalar, set = 0, binding = 4) readonly buffer Texcoord1Buffer { vec2 texc
 layout(scalar, set = 0, binding = 5) readonly buffer ColorBuffer { vec4 colors[]; };
 layout(scalar, set = 0, binding = 6) readonly buffer JointIndexBuffer { ivec4 jointIndices[]; };
 layout(scalar, set = 0, binding = 7) readonly buffer JointWeightBuffer { vec4 jointWeights[]; };
-layout(scalar, set = 0, binding = 8) readonly buffer JointMatBuffer { mat4 jointMatrices[]; };
 
 #endif // INPUT_ATTRIBUTES_GLSL

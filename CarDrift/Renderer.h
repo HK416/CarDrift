@@ -156,6 +156,7 @@ public:
 
     VkDescriptorSet getGlobalDescriptorSet(uint32_t frameIndex) const;
     void updateGlobalBuffer(uint32_t frameIndex, const GlobalData& data);
+    void updateBoneMatrices(uint32_t frameIndex, RenderQueue& queue);
 
     VkImageView getShadowImageView() const { return m_shadowImageView; }
     VkSampler getShadowSampler() const { return m_shadowSampler; }
@@ -191,9 +192,16 @@ private:
     VkSemaphore m_renderFinishedSemaphore = VK_NULL_HANDLE;
     VkFence m_inFlightFence = VK_NULL_HANDLE;
 
+    static const uint32_t MAX_BONE_MATRICES = 10'240;
     struct FrameResource {
         VkBuffer buffer;
         VmaAllocation allocation;
+        void* mappedGlobalData;
+
+        VkBuffer boneBuffer;
+        VmaAllocation boneAllocation;
+        void* mappedBoneData;
+
         VkDescriptorSet descriptorSet;
     };
     std::vector<FrameResource> m_globalResources;

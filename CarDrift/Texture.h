@@ -3,12 +3,15 @@
 class RenderContext;
 class PlainTextureBuilder;
 class CommonTextureBuilder;
+class MemoryTextureBuilder;
 
 struct SubresourceData {
     uint32_t offset;
     uint32_t size;
     uint32_t width;
     uint32_t height;
+    uint32_t mipLevel = 0;
+    uint32_t arrayLayer = 0;
 };
 
 struct TextureResourceData {
@@ -24,6 +27,7 @@ struct TextureResourceData {
 class Texture {
     friend class PlainTextureBuilder;
     friend class CommonTextureBuilder;
+    friend class MemoryTextureBuilder;
 
 public:
     Texture() = delete;
@@ -93,6 +97,48 @@ public:
 private:
     struct BuildInfo {
         std::filesystem::path filePath;
+        VkFilter minFilter = VK_FILTER_LINEAR;
+        VkFilter magFilter = VK_FILTER_LINEAR;
+        VkSamplerAddressMode wrapU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        VkSamplerAddressMode wrapV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        bool isSRGB = true;
+    } m_info;
+};
+
+class MemoryTextureBuilder {
+public:
+    MemoryTextureBuilder& setEncodedData(const uint8_t* data, size_t size, bool srgb = true);
+    MemoryTextureBuilder& setRawData(const uint8_t* pixels, uint32_t width, uint32_t height, VkFormat format);
+    MemoryTextureBuilder& setRawDataWithSubresources(
+        const uint8_t* pixels,
+        size_t totalDataSize,
+        uint32_t width,
+        uint32_t height,
+        uint32_t mipLevels,
+        uint32_t layerCount,
+        VkFormat format,
+        const std::vector<SubresourceData>& subresources
+    );
+    MemoryTextureBuilder& setFilter(VkFilter min, VkFilter mag);
+    MemoryTextureBuilder& setWrap(VkSamplerAddressMode u, VkSamplerAddressMode v);
+
+    std::unique_ptr<Texture> build(RenderContext* context, VkCommandBuffer cmd);
+
+private:
+    size_t calculateFormatSize(uint32_t width, uint32_t height, VkFormat format) const;
+
+private:
+    struct BuildInfo {
+        std::vector<uint8_t> bufferData;
+        bool isEncoded = false;
+
+        uint32_t width = 0;
+        uint32_t height = 0;
+        uint32_t mipLevels = 1;
+        uint32_t layerCount = 1;
+        VkFormat format = VK_FORMAT_UNDEFINED;
+        std::vector<SubresourceData> subresources;
+
         VkFilter minFilter = VK_FILTER_LINEAR;
         VkFilter magFilter = VK_FILTER_LINEAR;
         VkSamplerAddressMode wrapU = VK_SAMPLER_ADDRESS_MODE_REPEAT;

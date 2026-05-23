@@ -15,6 +15,7 @@ public:
     const std::vector<GameObject*>& getChildren() const { return m_children; }
 
     void update(float elapsedTimeSec);
+    void lateUpdate(float elapsedTimeSec);
     virtual void render(RenderQueue& queue);
 
     void setName(const std::string& name) { m_name = name; }
@@ -33,6 +34,7 @@ protected:
     void setWorldDirty();
     virtual void updateWorldMatrix();
     virtual void onUpdate(float elapsedTimeSec) {}
+    virtual void onLateUpdate(float elapsedTimeSec) {}
 
 protected:
     std::string m_name = "GameObject";
@@ -52,12 +54,37 @@ public:
     MeshObject() = delete;
     MeshObject(const MeshObject&) = delete;
     MeshObject& operator=(const MeshObject&) = delete;
-    MeshObject(Mesh* mesh, Material* material);
+    MeshObject(Mesh* mesh, const std::vector<Material*>& materials);
     virtual ~MeshObject() = default;
 
     virtual void render(RenderQueue& queue) override;
 
+    Mesh* getMesh() const { return m_mesh; }
+    const std::vector<Material*>& getMaterials() const { return m_materials; }
+
 protected:
     Mesh* m_mesh;
-    Material* m_material;
+    std::vector<Material*> m_materials;
+};
+
+class SkinnedMeshObject : public MeshObject {
+public:
+    SkinnedMeshObject() = delete;
+    SkinnedMeshObject(const SkinnedMeshObject&) = delete;
+    SkinnedMeshObject& operator=(const SkinnedMeshObject&) = delete;
+    SkinnedMeshObject(Mesh* mesh, const std::vector<Material*>& materials);
+    virtual ~SkinnedMeshObject() = default;
+
+    virtual void render(RenderQueue& queue) override;
+
+    void setBones(const std::vector<GameObject*>& bones, const std::vector<glm::mat4>& inverseBindMatrices);
+    const std::vector<glm::mat4>& getFinalBoneMatrices() const { return m_finalBoneMatrices; }
+
+protected:
+    virtual void onLateUpdate(float elapsedTimeSec) override;
+
+protected:
+    std::vector<GameObject*> m_bones;
+    std::vector<glm::mat4> m_inverseBindMatrices;
+    std::vector<glm::mat4> m_finalBoneMatrices;
 };

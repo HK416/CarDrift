@@ -30,14 +30,14 @@ void main() {
 	if ((pc.attributeMask & FLAG_COLOR) != 0)	inColor = colors[index];
 
 	mat4 skinMat = mat4(1.0);
-	if (HAS_SKINNING && (pc.attributeMask & FLAG_JOINT_INDEX) != 0 && (pc.attributeMask & FLAG_JOINT_WEIGHT) != 0) {
+	if (HAS_SKINNING && (pc.attributeMask & FLAG_JOINT_INDEX) != 0 && (pc.attributeMask & FLAG_JOINT_WEIGHT) != 0 && pc.boneOffset >= 0) {
 		ivec4 jointIndex = jointIndices[index];
 		vec4 jointWeight = jointWeights[index];
-
-		skinMat = (jointWeight.x * jointMatrices[jointIndex.x]) +
-				  (jointWeight.y * jointMatrices[jointIndex.y]) +
-				  (jointWeight.z * jointMatrices[jointIndex.z]) +
-				  (jointWeight.w * jointMatrices[jointIndex.w]);
+		
+		skinMat = (jointWeight.x * boneMatrices[pc.boneOffset + jointIndex.x]) +
+				  (jointWeight.y * boneMatrices[pc.boneOffset + jointIndex.y]) +
+				  (jointWeight.z * boneMatrices[pc.boneOffset + jointIndex.z]) +
+				  (jointWeight.w * boneMatrices[pc.boneOffset + jointIndex.w]);
 	}
 
 	mat4 modelMat = pc.worldMatrix * skinMat;

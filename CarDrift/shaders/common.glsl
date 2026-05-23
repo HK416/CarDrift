@@ -32,6 +32,7 @@ layout(scalar, set = 1, binding = 0) uniform GlobalUniforms {
 } global;
 
 layout(set = 1, binding = 1) uniform sampler2DArrayShadow shadowMap;
+layout(set = 1, binding = 2) readonly buffer BoneMatBuffer { mat4 boneMatrices[]; };
 
 //---------------------------------------------------------
 // Set 2: Material Uniforms
@@ -56,6 +57,7 @@ layout(push_constant) uniform PushContants {
 	mat4 worldMatrix;
 	uint attributeMask;
 	uint cascadeIndex;
+	int boneOffset;
 } pc;
 
 #endif // COMMON_GLSL

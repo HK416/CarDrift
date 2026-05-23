@@ -3,12 +3,6 @@
 class RenderContext;
 class ShaderLayout;
 
-struct PushConstantData {
-    glm::mat4 worldMatrix{1.0f};
-    uint32_t attributeMask = 0;
-    uint32_t cascadeIndex = 0;
-};
-
 enum class ShaderFeature : uint32_t {
     None        = 0,
     Skinned     = 1 << 0,

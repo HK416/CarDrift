@@ -9,6 +9,14 @@
     "glfw3",
     "glm",
     "stb",
+    "fastgltf",
+    {
+      "name": "ktx",
+      "features": [
+        "tools",
+        "vulkan"
+      ]
+    },
     {
       "name": "imgui",
       "features": [

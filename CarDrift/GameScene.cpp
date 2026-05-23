@@ -18,6 +18,14 @@ void GameScene::update(float elapsedTimeSec) {
             rootObj->update(elapsedTimeSec);
         }
     }
+}
+
+void GameScene::postUpdate(float elapsedTimeSec) {
+    for (GameObject* rootObj : m_rootObjects) {
+        if (rootObj && !rootObj->isPendingDestroy()) {
+            rootObj->lateUpdate(elapsedTimeSec);
+        }
+    }
 
     m_rootObjects.erase(
         std::remove_if(
@@ -133,8 +141,8 @@ void SceneManager::prepareRenderQueue(uint32_t frameIndex, RenderQueue& queue) {
         m_sceneStack[i]->render(queue, alpha);
     }
 
-    m_renderer->updateGlobalBuffer(frameIndex, queue.getGlobalData());
     queue.sort();
+    m_renderer->updateGlobalBuffer(frameIndex, queue.getGlobalData());
 }
 
 void SceneManager::renderShadowPass(VkCommandBuffer cmd, uint32_t frameIndex, RenderQueue& queue) {
@@ -222,6 +230,7 @@ void SceneManager::renderShadowPass(VkCommandBuffer cmd, uint32_t frameIndex, Re
                 }
 
                 pcData.worldMatrix = item.worldMatrix;
+                pcData.boneOffset = item.boneOffset;
                 vkCmdPushConstants(
                     cmd,
                     lastShadowShader->getLayout()->getPipelineLayout(),
@@ -445,6 +454,7 @@ void SceneManager::executeRenderQueue(
             }
 
             pcData.worldMatrix = item.worldMatrix;
+            pcData.boneOffset = item.boneOffset;
             vkCmdPushConstants(
                 cmd,
                 lastShader->getLayout()->getPipelineLayout(),

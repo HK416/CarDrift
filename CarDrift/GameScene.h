@@ -41,7 +41,7 @@ public:
     virtual void preUpdate(float elapsedTimeSec) {}
     virtual void update(float elapsedTimeSec);
     virtual void fixedUpdate(float fixedStep) {}
-    virtual void postUpdate(float elapsedTimeSec) {}
+    virtual void postUpdate(float elapsedTimeSec);
 
     virtual void onPreRender(VkCommandBuffer commandBuffer) {}
     virtual void render(RenderQueue& queue, float alpha) = 0;

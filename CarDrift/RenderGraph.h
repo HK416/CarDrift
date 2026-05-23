@@ -56,6 +56,15 @@ struct RenderItem {
     uint32_t submeshIndex = 0;
     glm::mat4 worldMatrix{1.0f};
     float sortDistance = 0.0f;
+    const std::vector<glm::mat4>* boneMatrices = nullptr;
+    mutable int32_t boneOffset = 0;
+};
+
+struct PushConstantData {
+    glm::mat4 worldMatrix{1.0f};
+    uint32_t attributeMask = 0;
+    uint32_t cascadeIndex = 0;
+    uint32_t boneOffset = 0;
 };
 
 class RenderQueue {
