@@ -2,6 +2,7 @@
 
 class Mesh;
 class Material;
+class SkyboxObject;
 
 // --- Light Data ---
 //
@@ -76,6 +77,7 @@ public:
     void setShadowMatrix(uint32_t index, const glm::mat4& matrix);
     void setAmbient(float intensity);
     void setCascadeData(uint32_t count, const glm::vec4& splits);
+    void setSkybox(SkyboxObject* skybox);
 
     void addOpaque(const RenderItem& item);
     void addTransparent(const RenderItem& item);
@@ -85,6 +87,9 @@ public:
     const std::vector<RenderItem>& getOpaqueItems() const { return m_opaqueItems; }
     const std::vector<RenderItem>& getTransparentItems() const { return m_transparentItems; }
     const GlobalData& getGlobalData() const { return m_globalData; }
+
+public:
+    SkyboxObject* m_skybox = nullptr;
 
 private:
     GlobalData m_globalData;

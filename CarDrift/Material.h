@@ -61,14 +61,45 @@ private:
         float metallicFactor{1.0f};
         float alphaCutoff{0.5f};
         float aoFactor{1.0f};
-    };
-
-    PBRMaterialParams m_params;
+    } m_params;
 
     Texture* m_albedoMap; // 소유하지 않는 클래스 맴버 (장면 또는 엔진이 관리함)
     Texture* m_normalMap; // 소유하지 않는 클래스 맴버 (장면 또는 엔진이 관리함)
     Texture* m_mrMap;     // 소유하지 않는 클래스 맴버 (장면 또는 엔진이 관리함)
     Texture* m_aoMap;     // 소유하지 않는 클래스 맴버 (장면 또는 엔진이 관리함)
+
+    VkBuffer m_uniformBuffer = VK_NULL_HANDLE;
+    VmaAllocation m_allocation = VK_NULL_HANDLE;
+
+    bool m_dirty = true;
+};
+
+class SkyboxMaterial : public Material {
+public:
+    SkyboxMaterial() = delete;
+    SkyboxMaterial(const SkyboxMaterial&) = delete;
+    SkyboxMaterial& operator=(const SkyboxMaterial&) = delete;
+
+    SkyboxMaterial(RenderContext* context, Shader* shader);
+    virtual ~SkyboxMaterial();
+
+    SkyboxMaterial& setCubeMap(Texture* cubeMap);
+    SkyboxMaterial& setExposure(float exposure);
+    SkyboxMaterial& setTintColor(const glm::vec4& tintColor);
+
+    virtual void bind(VkCommandBuffer cmd) override;
+
+protected:
+    virtual void updateDescriptorSet() override;
+
+private:
+    struct SkyboxMaterialParams {
+        glm::vec4 tintColor{1.0f, 1.0f, 1.0f, 1.0f};
+        float exposure = 1.0f;
+        uint32_t _padding[3];
+    } m_params;
+
+    Texture* m_cubeMap = nullptr;
 
     VkBuffer m_uniformBuffer = VK_NULL_HANDLE;
     VmaAllocation m_allocation = VK_NULL_HANDLE;

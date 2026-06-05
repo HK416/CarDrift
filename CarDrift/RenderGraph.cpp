@@ -4,6 +4,7 @@
 #include "Shader.h"
 
 void RenderQueue::clear() {
+    m_skybox = nullptr;
     m_opaqueItems.clear();
     m_transparentItems.clear();
     m_globalData.lightCount = 0;

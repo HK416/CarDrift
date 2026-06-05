@@ -3,6 +3,7 @@
 
 #include "global_types.glsl"
 #include "common.glsl"
+#include "standard.glsl"
 #include "pbr_common.glsl"
 
 layout(location = 0) in vec3 inWorldPos;

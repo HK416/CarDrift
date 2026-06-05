@@ -31,6 +31,7 @@ public:
     Texture* getWhiteTextureSrgb() const { return m_whiteTextureSrgb.get(); }
     Texture* getWhiteTextureUnorm() const { return m_whiteTextureUnorm.get(); }
     Texture* getFlatNormalTexture() const { return m_normalTexture.get(); }
+    Texture* getSkyboxTexture() const { return m_skyboxTexture.get(); }
 
 private:
     void createRenderInstance();
@@ -73,6 +74,7 @@ private:
     std::unique_ptr<Texture> m_whiteTextureSrgb;
     std::unique_ptr<Texture> m_whiteTextureUnorm;
     std::unique_ptr<Texture> m_normalTexture;
+    std::unique_ptr<Texture> m_skyboxTexture;
 };
 
 class RenderSwapchain {

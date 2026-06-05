@@ -3,6 +3,7 @@
 
 #include "global_types.glsl"
 #include "common.glsl"
+#include "standard.glsl"
 
 layout(location = 0) in vec2 inTexcoord0;
 

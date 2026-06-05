@@ -184,3 +184,95 @@ void StandardMaterial::updateDescriptorSet() {
         nullptr
     );
 }
+
+SkyboxMaterial::~SkyboxMaterial() {
+    if (m_uniformBuffer != VK_NULL_HANDLE) {
+        vmaDestroyBuffer(m_context->getAllocator(), m_uniformBuffer, m_allocation);
+    }
+}
+
+SkyboxMaterial::SkyboxMaterial(RenderContext* context, Shader* shader)
+    : Material(context, shader, nullptr), m_cubeMap(context->getSkyboxTexture()) {
+    VkBufferCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    createInfo.size = sizeof(SkyboxMaterialParams);
+    createInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+
+    VmaAllocationCreateInfo allocInfo = {};
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+
+    if (vmaCreateBuffer(m_context->getAllocator(), &createInfo, &allocInfo, &m_uniformBuffer, &m_allocation, nullptr) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create standard material uniform buffer!");
+    }
+}
+
+SkyboxMaterial& SkyboxMaterial::setCubeMap(Texture* cubeMap) {
+    m_cubeMap = cubeMap ? cubeMap : m_context->getSkyboxTexture();
+    m_dirty = true;
+    return *this;
+}
+
+SkyboxMaterial& SkyboxMaterial::setExposure(float exposure) {
+    m_params.exposure = exposure;
+    m_dirty = true;
+    return *this;
+}
+
+SkyboxMaterial& SkyboxMaterial::setTintColor(const glm::vec4& tintColor) {
+    m_params.tintColor = tintColor;
+    m_dirty = true;
+    return *this;
+}
+
+void SkyboxMaterial::bind(VkCommandBuffer cmd) {
+    if (m_dirty) {
+        updateDescriptorSet();
+        m_dirty = false;
+    }
+
+    Material::bind(cmd);
+}
+
+void SkyboxMaterial::updateDescriptorSet() {
+    void* data;
+    vmaMapMemory(m_context->getAllocator(), m_allocation, &data);
+    memcpy(data, &m_params, sizeof(SkyboxMaterialParams));
+    vmaUnmapMemory(m_context->getAllocator(), m_allocation);
+
+    std::vector<VkWriteDescriptorSet> writes(2);
+
+    // Binding 0: Uniform Buffer
+    VkDescriptorBufferInfo bufferInfo = {};
+    bufferInfo.buffer = m_uniformBuffer;
+    bufferInfo.offset = 0;
+    bufferInfo.range = sizeof(SkyboxMaterialParams);
+
+    writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writes[0].dstSet = m_descriptorSet;
+    writes[0].dstBinding = 0;
+    writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    writes[0].descriptorCount = 1;
+    writes[0].pBufferInfo = &bufferInfo;
+
+    // Binding 1: CubeMap
+    VkDescriptorImageInfo albedoImageInfo = {};
+    albedoImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    albedoImageInfo.imageView = m_cubeMap->getImageView();
+    albedoImageInfo.sampler = m_cubeMap->getSampler();
+
+    writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writes[1].dstSet = m_descriptorSet;
+    writes[1].dstBinding = 1;
+    writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    writes[1].descriptorCount = 1;
+    writes[1].pImageInfo = &albedoImageInfo;
+
+    vkUpdateDescriptorSets(
+        m_context->getDevice(),
+        static_cast<uint32_t>(writes.size()),
+        writes.data(),
+        0,
+        nullptr
+    );
+}

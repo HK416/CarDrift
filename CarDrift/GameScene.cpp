@@ -5,6 +5,7 @@
 #include "Renderer.h"
 #include "Shader.h"
 #include "ShaderLayout.h"
+#include "SkyboxObject.h"
 #include "Material.h"
 #include "Mesh.h"
 #include "Texture.h"
@@ -417,14 +418,18 @@ void SceneManager::clearImmediate() {
 void SceneManager::executeRenderQueue(
     VkCommandBuffer cmd, uint32_t frameIndex, RenderQueue& queue
 ) {
+    VkDescriptorSet globalSet = m_renderer->getGlobalDescriptorSet(frameIndex);
+
+    //-------------------------------------------------------------------------
+    // Opaque Pass
+    //-------------------------------------------------------------------------
     const auto& opaqueItems = queue.getOpaqueItems();
     if (!opaqueItems.empty()) {
         Shader* lastShader = nullptr;
         Material* lastMaterial = nullptr;
         Mesh* lastMesh = nullptr;
-
+        VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
         PushConstantData pcData;
-        VkDescriptorSet globalSet = m_renderer->getGlobalDescriptorSet(frameIndex);
 
         for (const auto& item : opaqueItems) {
             if (!item.mesh || !item.material) {
@@ -435,7 +440,7 @@ void SceneManager::executeRenderQueue(
                 lastShader = item.material->getShader();
                 lastShader->bind(cmd);
 
-                VkPipelineLayout pipelineLayout = lastShader->getLayout()->getPipelineLayout();
+                pipelineLayout = lastShader->getLayout()->getPipelineLayout();
                 vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &globalSet, 0, nullptr);
             }
 
@@ -446,18 +451,109 @@ void SceneManager::executeRenderQueue(
 
             if (item.mesh != lastMesh) {
                 lastMesh = item.mesh;
-                pcData.attributeMask = item.mesh->getAttributeMask();
-
-                
-                VkPipelineLayout pipelineLayout = lastShader->getLayout()->getPipelineLayout();
                 lastMesh->bindBuffers(cmd, pipelineLayout);
+                pcData.attributeMask = item.mesh->getAttributeMask();
             }
 
             pcData.worldMatrix = item.worldMatrix;
             pcData.boneOffset = item.boneOffset;
             vkCmdPushConstants(
                 cmd,
-                lastShader->getLayout()->getPipelineLayout(),
+                pipelineLayout,
+                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                0,
+                sizeof(PushConstantData),
+                &pcData
+            );
+
+            const auto& submesh = item.mesh->getSubMeshes()[item.submeshIndex];
+            vkCmdDrawIndexed(cmd, submesh.indexCount, 1, submesh.indexStart, 0, 0);
+        }
+    }
+
+    //-------------------------------------------------------------------------
+    // Skybox Pass
+    //-------------------------------------------------------------------------
+    if (queue.m_skybox) {
+        Mesh* skyboxMesh = queue.m_skybox->getMesh();
+        const auto& skyboxMaterials = queue.m_skybox->getMaterials();
+
+        if (skyboxMesh && !skyboxMaterials.empty() && skyboxMaterials[0]) {
+            Material* skyboxMaterial = skyboxMaterials[0];
+            Shader* skyboxShader = skyboxMaterial->getShader();
+
+            if (skyboxShader) {
+                skyboxShader->bind(cmd);
+
+                VkPipelineLayout pipelineLayout = skyboxShader->getLayout()->getPipelineLayout();
+                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &globalSet, 0, nullptr);
+
+                skyboxMaterial->bind(cmd);
+                skyboxMesh->bindBuffers(cmd, pipelineLayout);
+
+                PushConstantData pcData;
+                pcData.worldMatrix = glm::mat4(1.0f);
+                pcData.boneOffset = 0;
+                pcData.attributeMask = skyboxMesh->getAttributeMask();
+                pcData.cascadeIndex = 0;
+
+                vkCmdPushConstants(
+                    cmd,
+                    pipelineLayout,
+                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                    0,
+                    sizeof(PushConstantData),
+                    &pcData
+                );
+
+                for (size_t submeshIndex = 0; submeshIndex < skyboxMesh->getSubMeshes().size(); ++submeshIndex) {
+                    const auto& submesh = skyboxMesh->getSubMeshes()[submeshIndex];
+                    vkCmdDrawIndexed(cmd, submesh.indexCount, 1, submesh.indexStart, 0, 0);
+                }
+            }
+        }
+    }
+
+    //-------------------------------------------------------------------------
+    // Transparent Pass
+    //-------------------------------------------------------------------------
+    const auto& transparentItems = queue.getTransparentItems();
+    if (!transparentItems.empty()) {
+        Shader* lastShader = nullptr;
+        Material* lastMaterial = nullptr;
+        Mesh* lastMesh = nullptr;
+        VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+        PushConstantData pcData;
+
+        for (const auto& item : transparentItems) {
+            if (!item.mesh || !item.material) {
+                continue;
+            }
+
+            if (item.material->getShader() != lastShader) {
+                lastShader = item.material->getShader();
+                lastShader->bind(cmd);
+                
+                pipelineLayout = lastShader->getLayout()->getPipelineLayout();
+                vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &globalSet, 0, nullptr);
+            }
+
+            if (item.material != lastMaterial) {
+                lastMaterial = item.material;
+                lastMaterial->bind(cmd);
+            }
+
+            if (item.mesh != lastMesh) {
+                lastMesh = item.mesh;
+                lastMesh->bindBuffers(cmd, pipelineLayout);
+                pcData.attributeMask = item.mesh->getAttributeMask();
+            }
+
+            pcData.worldMatrix = item.worldMatrix;
+            pcData.boneOffset = item.boneOffset;
+            vkCmdPushConstants(
+                cmd,
+                pipelineLayout,
                 VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                 0,
                 sizeof(PushConstantData),

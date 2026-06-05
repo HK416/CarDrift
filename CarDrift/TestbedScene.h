@@ -4,6 +4,7 @@
 
 class PerspectiveCamera;
 class DirectionalLight;
+class SkyboxObject;
 class Renderer;
 
 class TestbedScene : public GameScene {
@@ -20,9 +21,10 @@ public:
     virtual void onGUI() override;
 
 private:
-    void createCubeMesh(VkCommandBuffer cmd);
+    void createSkyboxCubeMesh(VkCommandBuffer cmd);
 
 protected:
     PerspectiveCamera* m_mainCamera = nullptr;
     DirectionalLight* m_mainDirLight = nullptr;
+    SkyboxObject* m_skybox = nullptr;
 };

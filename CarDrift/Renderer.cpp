@@ -63,6 +63,7 @@ RenderContext::~RenderContext() {
     m_whiteTextureSrgb.reset();
     m_whiteTextureUnorm.reset();
     m_normalTexture.reset();
+    m_skyboxTexture.reset();
 
     if (m_globalLayout != VK_NULL_HANDLE) {
         vkDestroyDescriptorSetLayout(m_device, m_globalLayout, nullptr);
@@ -391,6 +392,21 @@ void RenderContext::createDefaultTextures(VkCommandBuffer cmd) {
     m_whiteTextureSrgb = PlainTextureBuilder().setColor(0xFFFFFFFF, true).build(this, cmd);
     m_whiteTextureUnorm = PlainTextureBuilder().setColor(0xFFFFFFFF, false).build(this, cmd);
     m_normalTexture = PlainTextureBuilder().setColor(0xFFFF8080, false).build(this, cmd);
+
+    const uint32_t cubeMapColors[6] = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF }; 
+    std::vector<SubresourceData> subresources(6);
+    for (size_t i = 0; i < subresources.size(); ++i) {
+        subresources[i].arrayLayer = i;
+        subresources[i].mipLevel = 0;
+        subresources[i].width = 1;
+        subresources[i].height = 1;
+        subresources[i].size = 4;
+        subresources[i].offset = i * 4;
+    }
+
+    m_skyboxTexture = MemoryTextureBuilder()
+                          .setRawDataWithSubresources(reinterpret_cast<const uint8_t*>(cubeMapColors), sizeof(cubeMapColors), 1, 1, 1, 6, VK_FORMAT_R8G8B8A8_SRGB, subresources)
+                          .build(this, cmd);
 }
 
 bool RenderContext::checkValidationLayerSupport() {

@@ -130,3 +130,14 @@ public:
     );
     virtual ~StandardShadowShader() = default;
 };
+
+class SkyboxShader : public GraphicsShader {
+public:
+    SkyboxShader() = delete;
+    SkyboxShader(const SkyboxShader&) = delete;
+    SkyboxShader& operator=(const SkyboxShader&) = delete;
+    SkyboxShader(
+        RenderContext* context, ShaderLayout* layout, uint32_t shaderKey
+    );
+    virtual ~SkyboxShader() = default;
+};

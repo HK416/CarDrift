@@ -346,3 +346,77 @@ StandardShadowShader::StandardShadowShader(
     vkDestroyShaderModule(m_context->getDevice(), vertModule, nullptr);
     vkDestroyShaderModule(m_context->getDevice(), fragModule, nullptr);
 }
+
+SkyboxShader::SkyboxShader(
+    RenderContext* context, ShaderLayout* layout, uint32_t shaderKey
+) : GraphicsShader(context, layout, shaderKey) {
+    // Load Shader Binary
+    auto vertCode = readSPIRVFile("shaders/skybox.vert.spv");
+    auto fragCode = readSPIRVFile("shaders/skybox.frag.spv");
+
+    VkShaderModule vertModule = createShaderModule(vertCode);
+    VkShaderModule fragModule = createShaderModule(fragCode);
+
+    // Configuration Specialization Constants
+    struct SpecializationData {
+        VkBool32 hasSkinning;
+        VkBool32 isTransparent;
+        VkBool32 useCutoff;
+    } specData;
+
+    specData.hasSkinning = hasFeature(shaderKey, ShaderFeature::Skinned);
+    specData.isTransparent = hasFeature(shaderKey, ShaderFeature::Transparent);
+    specData.useCutoff = hasFeature(shaderKey, ShaderFeature::Cutoff);
+
+    std::vector<VkSpecializationMapEntry> mapEntries = {
+        {0, offsetof(SpecializationData, hasSkinning), sizeof(VkBool32)},
+        {1, offsetof(SpecializationData, isTransparent), sizeof(VkBool32)},
+        {2, offsetof(SpecializationData, useCutoff), sizeof(VkBool32)}
+    };
+
+    VkSpecializationInfo specInfo = {};
+    specInfo.mapEntryCount = static_cast<uint32_t>(mapEntries.size());
+    specInfo.pMapEntries = mapEntries.data();
+    specInfo.dataSize = sizeof(SpecializationData);
+    specInfo.pData = &specData;
+
+    // Setup Shader Stages
+    std::vector<VkPipelineShaderStageCreateInfo> shaderStages(2);
+
+    shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaderStages[0].module = vertModule;
+    shaderStages[0].pName = "main";
+    shaderStages[0].pSpecializationInfo = &specInfo;
+
+    shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaderStages[1].module = fragModule;
+    shaderStages[1].pName = "main";
+    shaderStages[1].pSpecializationInfo = &specInfo;
+
+    // Configuration Dynamic States
+    RenderPipelineStates states;
+    states.rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT;
+    states.depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+    states.depthStencil.depthWriteEnable = VK_FALSE;
+
+    if (specData.isTransparent) {
+        states.depthStencil.depthWriteEnable = VK_FALSE;
+
+        states.colorBlendAttachment.blendEnable = VK_TRUE;
+        states.colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        states.colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        states.colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+        states.colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+        states.colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        states.colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    }
+
+    // Create Graphics Pipeline
+    setupRenderPipeline(states, shaderStages);
+
+    // Cleanup
+    vkDestroyShaderModule(m_context->getDevice(), vertModule, nullptr);
+    vkDestroyShaderModule(m_context->getDevice(), fragModule, nullptr);
+}

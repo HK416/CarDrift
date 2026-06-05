@@ -2,6 +2,7 @@
 #include "TestbedScene.h"
 #include "ShaderLayout.h"
 #include "Shader.h"
+#include "SkyboxObject.h"
 #include "Mesh.h"
 #include "Material.h"
 #include "Renderer.h"
@@ -66,19 +67,33 @@ void TestbedScene::onEnter() {
     addGameObject(std::move(camera));
 
     // --- Shader Layouts ---
-    ShaderLayoutBuilder builder;
-    builder.addDescriptorSetLayout(context->getGeometryDescriptorSetLayout());
-    builder.addDescriptorSetLayout(context->getGlobalDescriptorSetLayout());
-    builder.addDescriptorSetLayout({
-        {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
-        {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
-        {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
-        {3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
-        {4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
-    });
-    builder.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstantData));
-    addShaderLayout("Standard", builder.build(context));
-
+    // 1. Standard Layout
+    {
+        ShaderLayoutBuilder builder;
+        builder.addDescriptorSetLayout(context->getGeometryDescriptorSetLayout());
+        builder.addDescriptorSetLayout(context->getGlobalDescriptorSetLayout());
+        builder.addDescriptorSetLayout({
+            {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
+            {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
+            {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
+            {3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
+            {4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
+        });
+        builder.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstantData));
+        addShaderLayout("Standard", builder.build(context));
+    }
+    // 2. Skybox Layout
+    {
+        ShaderLayoutBuilder builder;
+        builder.addDescriptorSetLayout(context->getGeometryDescriptorSetLayout());
+        builder.addDescriptorSetLayout(context->getGlobalDescriptorSetLayout());
+        builder.addDescriptorSetLayout({
+            {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
+            {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT},
+        });
+        builder.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstantData));
+        addShaderLayout("Skybox", builder.build(context));
+    }
 
     // --- Shaders ---
     auto shader = std::make_unique<StandardShader>(context, getShaderLayout("Standard"), 0);
@@ -87,30 +102,25 @@ void TestbedScene::onEnter() {
     auto shadowShader = std::make_unique<StandardShadowShader>(context, getShaderLayout("Standard"), 0);
     addShader("StandardShadow", std::move(shadowShader));
 
+    auto skyboxShader = std::make_unique<SkyboxShader>(context, getShaderLayout("Skybox"), 0);
+    addShader("Skybox", std::move(skyboxShader));
+
     // --- Meshes ---
-    // createCubeMesh(cmd);
-    auto obj = GltfLoader::load("assets/models/Fox.glb", this, context, cmd);
-    obj->getTransform().setScale(glm::vec3(0.01f));
-    
+    createSkyboxCubeMesh(cmd);
+        
     // --- Materials ---
-    //auto material = std::make_unique<StandardMaterial>(context, getShader("Standard"), getShader("StandardShadow"));
-    //material->setAlbedo({1.0f, 0.5f, 0.3f, 1.0f});
-    //material->setMetallic(0.125f);
-    //material->setRoughness(0.8f);
-    //addMaterial("Standard", std::move(material));
+    auto skyboxMaterial = std::make_unique<SkyboxMaterial>(context, getShader("Skybox"));
+    addMaterial("Skybox", std::move(skyboxMaterial));
     
     // --- Objects ---
-    // 5x5 그리드로 큐브 배치
-    //uint32_t cnt = 0;
-    //for (int x = -2; x <= 2; ++x) {
-    //    for (int z = -2; z <= 2; ++z) {
-    //        auto cube = std::make_unique<CubeObject>(getMesh("Cube"), std::vector{getMaterial("Standard")}, cnt++);
-    //        cube->getTransform().setPosition({ (float)x * 2.0f, 0.0f, (float)z * 2.0f + 10.0f });
-    //        
-    //        m_rootObjects.push_back(cube.get());
-    //        m_allObjects.push_back(std::move(cube));
-    //    }
-    //}
+    auto skybox = std::make_unique<SkyboxObject>(getMesh("SkyboxCube"), getMaterial("Skybox"));
+    skybox->getTransform().setPosition({0.0f, 0.0f, 0.0f});
+    m_skybox = skybox.get();
+    m_rootObjects.push_back(skybox.get());
+    m_allObjects.push_back(std::move(skybox));
+    
+    auto obj = GltfLoader::load("assets/models/Fox.glb", this, context, cmd);
+    obj->getTransform().setScale(glm::vec3(0.01f));
 
     commandMgr->endSingleTimeCommands(cmd, context->getGraphicsQueue());
     vkQueueWaitIdle(context->getGraphicsQueue());
@@ -119,6 +129,10 @@ void TestbedScene::onEnter() {
 void TestbedScene::render(RenderQueue& queue, float alpha) {
     if (m_mainCamera) {
         m_mainCamera->applyToQueue(queue);
+    }
+
+    if (m_skybox) {
+        queue.m_skybox = m_skybox;
     }
 
     if (m_mainCamera && m_mainDirLight && m_mainDirLight->getLightData().castShadow > 0) {
@@ -148,7 +162,12 @@ void TestbedScene::onGUI() {
     if (m_mainDirLight) {
         ImGui::SeparatorText("Directional Light Settings");
 
-        glm::vec3 eulerDegrees = m_mainDirLight->getTransform().getEulerAngles();
+        static bool lightInit = false;
+        static glm::vec3 eulerDegrees;
+        if (!lightInit) {
+            eulerDegrees = m_mainDirLight->getTransform().getEulerAngles();
+            lightInit = true;
+        }
 
         if (ImGui::SliderFloat3("Light Rotation (Euler)", &eulerDegrees.x, -180.0f, 180.0f)) {
             m_mainDirLight->getTransform().setRotation(eulerDegrees);
@@ -160,10 +179,29 @@ void TestbedScene::onGUI() {
         }
     }
 
+    if (m_mainCamera) {
+        ImGui::SeparatorText("Camera Settings");
+        
+        glm::vec3 camPos = m_mainCamera->getTransform().getPosition();
+        if (ImGui::DragFloat3("Camera Position", &camPos.x, 0.1f)) {
+            m_mainCamera->getTransform().setPosition(camPos);
+        }
+
+        static bool camRotInit = false;
+        static glm::vec3 camEuler;
+        if (!camRotInit) {
+            camEuler = m_mainCamera->getTransform().getEulerAngles();
+            camRotInit = true;
+        }
+        if (ImGui::SliderFloat3("Camera Rotation", &camEuler.x, -180.0f, 180.0f)) {
+            m_mainCamera->getTransform().setRotation(camEuler);
+        }
+    }
+
     ImGui::End();
 }
 
-void TestbedScene::createCubeMesh(VkCommandBuffer cmd) {
+void TestbedScene::createSkyboxCubeMesh(VkCommandBuffer cmd) {
     // 1. Positions (24 vertices for 6 faces to have hard edges/unique normals
     // per face)
     std::vector<glm::vec3> positions = {
@@ -199,51 +237,7 @@ void TestbedScene::createCubeMesh(VkCommandBuffer cmd) {
         {-0.5f, 0.5f, -0.5f}
     };
 
-    // 2. Normals
-    std::vector<glm::vec3> normals = {
-        // Front
-        {0.0f, 0.0f, 1.0f},
-        {0.0f, 0.0f, 1.0f},
-        {0.0f, 0.0f, 1.0f},
-        {0.0f, 0.0f, 1.0f},
-        // Back
-        {0.0f, 0.0f, -1.0f},
-        {0.0f, 0.0f, -1.0f},
-        {0.0f, 0.0f, -1.0f},
-        {0.0f, 0.0f, -1.0f},
-        // Top
-        {0.0f, 1.0f, 0.0f},
-        {0.0f, 1.0f, 0.0f},
-        {0.0f, 1.0f, 0.0f},
-        {0.0f, 1.0f, 0.0f},
-        // Bottom
-        {0.0f, -1.0f, 0.0f},
-        {0.0f, -1.0f, 0.0f},
-        {0.0f, -1.0f, 0.0f},
-        {0.0f, -1.0f, 0.0f},
-        // Right
-        {1.0f, 0.0f, 0.0f},
-        {1.0f, 0.0f, 0.0f},
-        {1.0f, 0.0f, 0.0f},
-        {1.0f, 0.0f, 0.0f},
-        // Left
-        {-1.0f, 0.0f, 0.0f},
-        {-1.0f, 0.0f, 0.0f},
-        {-1.0f, 0.0f, 0.0f},
-        {-1.0f, 0.0f, 0.0f}
-    };
-
-    // 3. Texture Coordinates (UVs)
-    std::vector<glm::vec2> uvs = {
-        {0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}, // Front
-        {0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}, // Back
-        {0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}, // Top
-        {0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}, // Bottom
-        {0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}, // Right
-        {0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}  // Left
-    };
-
-    // 5. Indices (2 triangles per face)
+    // 2. Indices (2 triangles per face)
     std::vector<uint32_t> indices = {
         0,  1,  2,  2,  3,  0,  // Front
         4,  5,  6,  6,  7,  4,  // Back
@@ -256,10 +250,8 @@ void TestbedScene::createCubeMesh(VkCommandBuffer cmd) {
     // 6. Build Mesh
     MeshBuilder builder;
     builder.setPosition(positions)
-        .setNormals(normals)
-        .setTexcoord0(uvs)
         .setIndices(indices);
 
     VkDescriptorSetLayout layout = m_renderer->getContext()->getGeometryDescriptorSetLayout();
-    addMesh("Cube", builder.build(m_renderer->getContext(), cmd, layout));
+    addMesh("SkyboxCube", builder.build(m_renderer->getContext(), cmd, layout));
 }
