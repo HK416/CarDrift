@@ -94,7 +94,6 @@
     <ClCompile Include="RenderGraph.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="ShaderLayout.cpp" />
-    <ClCompile Include="SkyboxObject.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="TestbedScene.cpp" />
     <ClCompile Include="Texture.cpp" />
@@ -114,7 +113,6 @@
     <ClInclude Include="RenderGraph.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="ShaderLayout.h" />
-    <ClInclude Include="SkyboxObject.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="TestbedScene.h" />
     <ClInclude Include="Texture.h" />

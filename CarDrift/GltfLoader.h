@@ -15,6 +15,7 @@ public:
 
 private:
     static void loadTextures(
+        const std::filesystem::path& path,
         fastgltf::Asset& asset,
         GameScene* scene,
         RenderContext* context,

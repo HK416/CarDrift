@@ -5,7 +5,6 @@
 #include "Renderer.h"
 #include "Shader.h"
 #include "ShaderLayout.h"
-#include "SkyboxObject.h"
 #include "Material.h"
 #include "Mesh.h"
 #include "Texture.h"

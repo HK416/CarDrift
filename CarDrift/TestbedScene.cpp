@@ -2,7 +2,6 @@
 #include "TestbedScene.h"
 #include "ShaderLayout.h"
 #include "Shader.h"
-#include "SkyboxObject.h"
 #include "Mesh.h"
 #include "Material.h"
 #include "Renderer.h"
@@ -44,7 +43,7 @@ void TestbedScene::onEnter() {
 
     // --- Lights ---
     auto dirLight = std::make_unique<DirectionalLight>();
-    //dirLight->getTransform().setRotation({50.0f, 0.0f, -30.0f});
+    dirLight->getTransform().setRotation({50.0f, 0.0f, -30.0f});
     dirLight->setColor({1.0f, 1.0f, 1.0f});
     dirLight->setIntensity(2.5f);
     m_mainDirLight = dirLight.get();
@@ -96,20 +95,34 @@ void TestbedScene::onEnter() {
     }
 
     // --- Shaders ---
-    auto shader = std::make_unique<StandardShader>(context, getShaderLayout("Standard"), 0);
-    addShader("StandardOpaque", std::move(shader));
+    auto shaderOpaque = std::make_unique<StandardShader>(context, getShaderLayout("Standard"), 0);
+    addShader("StandardOpaque", std::move(shaderOpaque));
+    auto shadowOpaque = std::make_unique<StandardShadowShader>(context, getShaderLayout("Standard"), 0);
+    addShader("StandardShadow", std::move(shadowOpaque));
 
-    auto shadowShader = std::make_unique<StandardShadowShader>(context, getShaderLayout("Standard"), 0);
-    addShader("StandardShadow", std::move(shadowShader));
+    auto shaderCutoff = std::make_unique<StandardShader>(context, getShaderLayout("Standard"), (int)ShaderFeature::Cutoff);
+    addShader("StandardCutoff", std::move(shaderCutoff));
+    auto shadowCutoff = std::make_unique<StandardShadowShader>(context, getShaderLayout("Standard"), (int)ShaderFeature::Cutoff);
+    addShader("StandardShadowCutoff", std::move(shadowCutoff));
+
+    auto shaderTransparent = std::make_unique<StandardShader>(context, getShaderLayout("Standard"), (int)ShaderFeature::Transparent);
+    addShader("StandardTransparent", std::move(shaderTransparent));
 
     auto skyboxShader = std::make_unique<SkyboxShader>(context, getShaderLayout("Skybox"), 0);
     addShader("Skybox", std::move(skyboxShader));
 
     // --- Meshes ---
     createSkyboxCubeMesh(cmd);
+
+    // --- Textures ---
+    auto skyboxTexture = KtxTextureBuilder()
+                             .setFile("assets/textures/skybox.ktx2", true)
+                             .build(context, cmd);
+    addTexture("Skybox", std::move(skyboxTexture));
         
     // --- Materials ---
     auto skyboxMaterial = std::make_unique<SkyboxMaterial>(context, getShader("Skybox"));
+    skyboxMaterial->setCubeMap(getTexture("Skybox"));
     addMaterial("Skybox", std::move(skyboxMaterial));
     
     // --- Objects ---
@@ -120,7 +133,8 @@ void TestbedScene::onEnter() {
     m_allObjects.push_back(std::move(skybox));
     
     auto obj = GltfLoader::load("assets/models/Fox.glb", this, context, cmd);
-    obj->getTransform().setScale(glm::vec3(0.01f));
+    obj->getTransform().setScale(glm::vec3{0.01f});
+    obj->getTransform().setRotation({0.0f, 180.0f, 0.0f});
 
     commandMgr->endSingleTimeCommands(cmd, context->getGraphicsQueue());
     vkQueueWaitIdle(context->getGraphicsQueue());

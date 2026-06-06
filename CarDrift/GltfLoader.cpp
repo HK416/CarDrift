@@ -28,7 +28,7 @@ GameObject* GltfLoader::load(
     }
 
     fastgltf::Asset& asset = assetResult.get();
-    loadTextures(asset, scene, context, cmd);
+    loadTextures(path, asset, scene, context, cmd);
     loadMaterials(path, asset, scene, context);
     loadMeshes(path, asset, scene, context, cmd);
 
@@ -102,6 +102,7 @@ struct KtxTextureDeleter {
 using KtxTextureUniquePtr = std::unique_ptr<ktxTexture, KtxTextureDeleter>;
 
 void GltfLoader::loadTextures(
+    const std::filesystem::path& path,
     fastgltf::Asset& asset,
     GameScene* scene,
     RenderContext* context,
@@ -127,7 +128,7 @@ void GltfLoader::loadTextures(
         const auto& gltfTex = asset.textures[i];
         bool isSRGB = isTextureSRGB[i];
 
-        std::string texName(gltfTex.name);
+        std::string texName = std::format("{}_tex_{}", path.filename().string(), i);
         if (scene->getTexture(texName) != nullptr) {
             continue;
         }
@@ -320,20 +321,26 @@ void GltfLoader::loadMaterials(
         }
 
         if (!targetShader) {
-            throw std::runtime_error("TODO!");
+            throw std::runtime_error(
+                std::format(
+                    "Failed to find the required shader in the scene for "
+                    "material '{}' (Alpha mode: {}).",
+                    matName,
+                    static_cast<int>(gltfMat.alphaMode)
+                )
+            );
         }
 
         auto material = std::make_unique<StandardMaterial>(context, targetShader, targetShaderShadow);
 
         const auto& pbr = gltfMat.pbrData;
-        material->setAlbedo(
-            glm::vec4(
-                pbr.baseColorFactor[0],
-                pbr.baseColorFactor[1],
-                pbr.baseColorFactor[2],
-                pbr.baseColorFactor[3]
-            )
-        );
+        glm::vec4 albedoFactor{
+            pbr.baseColorFactor[0],
+            pbr.baseColorFactor[1],
+            pbr.baseColorFactor[2],
+            pbr.baseColorFactor[3]
+        };
+        material->setAlbedo(albedoFactor);
         material->setMetallic(static_cast<float>(pbr.metallicFactor));
         material->setRoughness(static_cast<float>(pbr.roughnessFactor));
 
@@ -342,26 +349,36 @@ void GltfLoader::loadMaterials(
         }
 
         if (pbr.baseColorTexture.has_value()) {
-            const auto& gltfTex = asset.textures[pbr.baseColorTexture.value().textureIndex];
-            std::string texName(gltfTex.name);
+            if (albedoFactor.r == 0.0f && albedoFactor.g == 0.0f && albedoFactor.b == 0.0f) {
+                albedoFactor = glm::vec4(1.0f, 1.0f, 1.0f, albedoFactor.a);
+                material->setAlbedo(albedoFactor);
+                spdlog::warn(
+                    "Material '{}': Black albedo factor with texture detected. "
+                    "Overriding to white.",
+                    matName
+                );
+            }
+
+            size_t texIdx = pbr.baseColorTexture.value().textureIndex;
+            std::string texName = std::format("{}_tex_{}", path.filename().string(), texIdx);
             material->setAlbedoMap(scene->getTexture(texName));
         }
 
         if (pbr.metallicRoughnessTexture.has_value()) {
-            const auto& gltfTex = asset.textures[pbr.metallicRoughnessTexture.value().textureIndex];
-            std::string texName(gltfTex.name);
+            size_t texIdx = pbr.metallicRoughnessTexture.value().textureIndex;
+            std::string texName = std::format("{}_tex_{}", path.filename().string(), texIdx);
             material->setMetallicRoughnessMap(scene->getTexture(texName));
         }
 
         if (gltfMat.normalTexture.has_value()) {
-            const auto& gltfTex = asset.textures[gltfMat.normalTexture.value().textureIndex];
-            std::string texName(gltfTex.name);
+            size_t texIdx = gltfMat.normalTexture.value().textureIndex;
+            std::string texName = std::format("{}_tex_{}", path.filename().string(), texIdx);
             material->setNormalMap(scene->getTexture(texName));
         }
 
         if (gltfMat.occlusionTexture.has_value()) {
-            const auto& gltfTex = asset.textures[gltfMat.occlusionTexture.value().textureIndex];
-            std::string texName(gltfTex.name);
+            size_t texIdx = gltfMat.occlusionTexture.value().textureIndex;
+            std::string texName = std::format("{}_tex_{}", path.filename().string(), texIdx);
             material->setAOMap(scene->getTexture(texName));
         }
 

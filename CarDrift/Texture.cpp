@@ -477,3 +477,123 @@ size_t MemoryTextureBuilder::calculateFormatSize(uint32_t width, uint32_t height
             throw std::runtime_error("Unknown Texture Format...");
     };
 }
+
+KtxTextureBuilder& KtxTextureBuilder::setFile(const std::filesystem::path& filePath, bool srgb) {
+    m_info.filePath = filePath;
+    m_info.isSRGB = srgb;
+    return *this;
+}
+
+KtxTextureBuilder& KtxTextureBuilder::setFilter(VkFilter min, VkFilter mag) {
+    m_info.minFilter = min;
+    m_info.magFilter = mag;
+    return *this;
+}
+
+KtxTextureBuilder& KtxTextureBuilder::setWrap(VkSamplerAddressMode u, VkSamplerAddressMode v) {
+    m_info.wrapU = u;
+    m_info.wrapV = v;
+    return *this;
+}
+
+KtxTextureBuilder& KtxTextureBuilder::setTranscodeTarget(ktx_transcode_fmt_e targetFormat) {
+    m_info.transcodeTarget = targetFormat;
+    return *this;
+}
+
+std::unique_ptr<Texture> KtxTextureBuilder::build(RenderContext* context, VkCommandBuffer cmd) {
+    ktxTexture* ktxTex = nullptr;
+    KTX_error_code result = ktxTexture_CreateFromNamedFile(
+        m_info.filePath.string().c_str(),
+        KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT,
+        &ktxTex
+    );
+
+    if (result != KTX_SUCCESS) {
+        throw std::runtime_error(std::format("Failed to load KTX texture (PATH:{})", m_info.filePath.string()));
+    }
+
+    if (ktxTexture_NeedsTranscoding(ktxTex)) {
+        ktxTexture2* ktxTex2 = reinterpret_cast<ktxTexture2*>(ktxTex);
+
+        result = ktxTexture2_TranscodeBasis(ktxTex2, m_info.transcodeTarget, 0);
+        if (result != KTX_SUCCESS) {
+            ktxTexture_Destroy(ktxTex);
+            throw std::runtime_error("Failed to transcode KTX2 Basis texture!");
+        }
+    }
+
+    TextureResourceData resData;
+    resData.width = ktxTex->baseWidth;
+    resData.height = ktxTex->baseHeight;
+    resData.mipLevels = ktxTex->numLevels;
+    
+    uint32_t numLayers = std::max(1u, ktxTex->numLayers);
+    uint32_t numFaces = ktxTex->isCubemap ? 6 : 1;
+    resData.layerCount = numLayers * numFaces;
+
+    resData.format = convertFormat(ktxTexture_GetVkFormat(ktxTex), m_info.isSRGB);
+
+    size_t totalSize = ktxTexture_GetDataSize(ktxTex);
+    const uint8_t* rawData = ktxTexture_GetData(ktxTex);
+    resData.pixelData.assign(rawData, rawData + totalSize);
+
+    for (uint32_t mip = 0; mip < ktxTex->numLevels; ++mip) {
+        for (uint32_t layer = 0; layer < numLayers; ++layer) {
+            for (uint32_t face = 0; face < numFaces; ++face) {
+                size_t offset = 0;
+                ktxTexture_GetImageOffset(ktxTex, mip, layer, face, &offset);
+
+                SubresourceData subData = {};
+                subData.offset = static_cast<uint32_t>(offset);
+                subData.size = static_cast<uint32_t>(ktxTexture_GetImageSize(ktxTex, mip));
+
+                subData.width = std::max(1u, resData.width >> mip);
+                subData.height = std::max(1u, resData.height >> mip);
+                subData.mipLevel = mip;
+                subData.arrayLayer = layer * numFaces + face;
+
+                resData.subresources.push_back(subData);
+            }
+        }
+    }
+
+    ktxTexture_Destroy(ktxTex);
+
+    auto texture = std::make_unique<Texture>(context);
+    texture->upload(cmd, resData);
+    texture->createImageView(resData.layerCount, resData.mipLevels);
+    texture->createSampler(resData.mipLevels, m_info.minFilter, m_info.magFilter, m_info.wrapU, m_info.wrapV);
+
+    return texture;
+}
+
+VkFormat KtxTextureBuilder::convertFormat(VkFormat format, bool isSRGB) {
+    switch (format) {
+        case VK_FORMAT_R8_UNORM:            return isSRGB ? VK_FORMAT_R8_SRGB : VK_FORMAT_R8_UNORM;
+        case VK_FORMAT_R8G8_UNORM:          return isSRGB ? VK_FORMAT_R8G8_SRGB : VK_FORMAT_R8G8_UNORM;
+        case VK_FORMAT_R8G8B8_UNORM:        
+        case VK_FORMAT_R8G8B8_SRGB:         return isSRGB ? VK_FORMAT_R8G8B8_SRGB : VK_FORMAT_R8G8B8_UNORM;
+        case VK_FORMAT_R8G8B8A8_UNORM:
+        case VK_FORMAT_R8G8B8A8_SRGB:       return isSRGB ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
+        case VK_FORMAT_B8G8R8A8_UNORM:
+        case VK_FORMAT_B8G8R8A8_SRGB:       return isSRGB ? VK_FORMAT_B8G8R8A8_SRGB : VK_FORMAT_B8G8R8A8_UNORM;;
+
+        // BC1, BC4 
+        case VK_FORMAT_BC1_RGB_UNORM_BLOCK:
+        case VK_FORMAT_BC1_RGB_SRGB_BLOCK:  return isSRGB ? VK_FORMAT_BC1_RGB_SRGB_BLOCK : VK_FORMAT_BC1_RGB_UNORM_BLOCK;
+        case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
+        case VK_FORMAT_BC1_RGBA_SRGB_BLOCK: return isSRGB ? VK_FORMAT_BC1_RGBA_SRGB_BLOCK : VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
+    
+        // BC2, BC3, BC5, BC6H, BC7 
+        case VK_FORMAT_BC2_UNORM_BLOCK:
+        case VK_FORMAT_BC2_SRGB_BLOCK:      return isSRGB ? VK_FORMAT_BC2_SRGB_BLOCK : VK_FORMAT_BC2_UNORM_BLOCK;
+        case VK_FORMAT_BC3_UNORM_BLOCK:
+        case VK_FORMAT_BC3_SRGB_BLOCK:      return isSRGB ? VK_FORMAT_BC3_SRGB_BLOCK : VK_FORMAT_BC3_UNORM_BLOCK;
+        case VK_FORMAT_BC7_UNORM_BLOCK:
+        case VK_FORMAT_BC7_SRGB_BLOCK:      return isSRGB ? VK_FORMAT_BC7_SRGB_BLOCK : VK_FORMAT_BC7_UNORM_BLOCK;
+
+        default:
+            return format;
+    };
+}

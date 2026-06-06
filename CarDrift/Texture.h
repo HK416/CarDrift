@@ -4,6 +4,7 @@ class RenderContext;
 class PlainTextureBuilder;
 class CommonTextureBuilder;
 class MemoryTextureBuilder;
+class KtxTextureBuilder;
 
 struct SubresourceData {
     uint32_t offset;
@@ -28,6 +29,7 @@ class Texture {
     friend class PlainTextureBuilder;
     friend class CommonTextureBuilder;
     friend class MemoryTextureBuilder;
+    friend class KtxTextureBuilder;
 
 public:
     Texture() = delete;
@@ -143,6 +145,30 @@ private:
         VkFilter magFilter = VK_FILTER_LINEAR;
         VkSamplerAddressMode wrapU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
         VkSamplerAddressMode wrapV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        bool isSRGB = true;
+    } m_info;
+};
+
+class KtxTextureBuilder {
+public:
+    KtxTextureBuilder& setFile(const std::filesystem::path& filePath, bool srgb);
+    KtxTextureBuilder& setFilter(VkFilter min, VkFilter mag);
+    KtxTextureBuilder& setWrap(VkSamplerAddressMode u, VkSamplerAddressMode v);
+    KtxTextureBuilder& setTranscodeTarget(ktx_transcode_fmt_e targetFormat);
+
+    std::unique_ptr<Texture> build(RenderContext* context, VkCommandBuffer cmd);
+
+private:
+    VkFormat convertFormat(VkFormat format, bool isSRGB);
+
+private:
+    struct BuildInfo {
+        std::filesystem::path filePath;
+        VkFilter minFilter = VK_FILTER_LINEAR;
+        VkFilter magFilter = VK_FILTER_LINEAR;
+        VkSamplerAddressMode wrapU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        VkSamplerAddressMode wrapV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        ktx_transcode_fmt_e transcodeTarget = KTX_TTF_BC7_RGBA;
         bool isSRGB = true;
     } m_info;
 };

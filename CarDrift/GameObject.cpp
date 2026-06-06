@@ -218,3 +218,6 @@ void SkinnedMeshObject::onLateUpdate(float elapsedTimeSec) {
         }
     }
 }
+
+SkyboxObject::SkyboxObject(Mesh* cubeMesh, Material* skyboxMaterial)
+    : MeshObject(cubeMesh, {skyboxMaterial}) {}
