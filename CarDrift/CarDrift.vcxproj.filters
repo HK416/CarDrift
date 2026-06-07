@@ -1,140 +1,172 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="소스 파일">
+    <Filter Include="src">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="헤더 파일">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    <Filter Include="src\core">
+      <UniqueIdentifier>{11111111-1111-1111-1111-111111111111}</UniqueIdentifier>
     </Filter>
-    <Filter Include="리소스 파일">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    <Filter Include="src\graphics">
+      <UniqueIdentifier>{22222222-2222-2222-2222-222222222222}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\scene">
+      <UniqueIdentifier>{33333333-3333-3333-3333-333333333333}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\utils">
+      <UniqueIdentifier>{44444444-4444-4444-4444-444444444444}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{55555555-5555-5555-5555-555555555555}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="stdafx.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\core\InputManager.cpp">
+      <Filter>src\core</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\core\main.cpp">
+      <Filter>src\core</Filter>
     </ClCompile>
-    <ClCompile Include="Renderer.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\core\stdafx.cpp">
+      <Filter>src\core</Filter>
     </ClCompile>
-    <ClCompile Include="GameScene.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\graphics\CascadeShadow.cpp">
+      <Filter>src\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="TestbedScene.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\graphics\Light.cpp">
+      <Filter>src\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="GameObject.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\graphics\Material.cpp">
+      <Filter>src\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="Transform.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\graphics\Mesh.cpp">
+      <Filter>src\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="RenderGraph.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\graphics\RenderGraph.cpp">
+      <Filter>src\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="Mesh.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\graphics\Renderer.cpp">
+      <Filter>src\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="ShaderLayout.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\graphics\Shader.cpp">
+      <Filter>src\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="Shader.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\graphics\ShaderLayout.cpp">
+      <Filter>src\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="Texture.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\graphics\Texture.cpp">
+      <Filter>src\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="Material.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\scene\GameCamera.cpp">
+      <Filter>src\scene</Filter>
     </ClCompile>
-    <ClCompile Include="GameCamera.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\scene\GameObject.cpp">
+      <Filter>src\scene</Filter>
     </ClCompile>
-    <ClCompile Include="InputManager.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\scene\GameScene.cpp">
+      <Filter>src\scene</Filter>
     </ClCompile>
-    <ClCompile Include="Light.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\scene\TestbedScene.cpp">
+      <Filter>src\scene</Filter>
     </ClCompile>
-    <ClCompile Include="CascadeShadow.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\scene\Transform.cpp">
+      <Filter>src\scene</Filter>
     </ClCompile>
-    <ClCompile Include="GltfLoader.cpp">
-      <Filter>소스 파일</Filter>
+    <ClCompile Include="src\utils\GltfLoader.cpp">
+      <Filter>src\utils</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="stdafx.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\core\InputManager.h">
+      <Filter>src\core</Filter>
     </ClInclude>
-    <ClInclude Include="Renderer.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\core\stdafx.h">
+      <Filter>src\core</Filter>
     </ClInclude>
-    <ClInclude Include="GameScene.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\graphics\CascadeShadow.h">
+      <Filter>src\graphics</Filter>
     </ClInclude>
-    <ClInclude Include="TestbedScene.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\graphics\Light.h">
+      <Filter>src\graphics</Filter>
     </ClInclude>
-    <ClInclude Include="GameObject.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\graphics\Material.h">
+      <Filter>src\graphics</Filter>
     </ClInclude>
-    <ClInclude Include="Transform.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\graphics\Mesh.h">
+      <Filter>src\graphics</Filter>
     </ClInclude>
-    <ClInclude Include="RenderGraph.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\graphics\RenderGraph.h">
+      <Filter>src\graphics</Filter>
     </ClInclude>
-    <ClInclude Include="Mesh.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\graphics\Renderer.h">
+      <Filter>src\graphics</Filter>
     </ClInclude>
-    <ClInclude Include="ShaderLayout.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\graphics\Shader.h">
+      <Filter>src\graphics</Filter>
     </ClInclude>
-    <ClInclude Include="Shader.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\graphics\ShaderLayout.h">
+      <Filter>src\graphics</Filter>
     </ClInclude>
-    <ClInclude Include="Texture.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\graphics\Texture.h">
+      <Filter>src\graphics</Filter>
     </ClInclude>
-    <ClInclude Include="Material.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\scene\GameCamera.h">
+      <Filter>src\scene</Filter>
     </ClInclude>
-    <ClInclude Include="GameCamera.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\scene\GameObject.h">
+      <Filter>src\scene</Filter>
     </ClInclude>
-    <ClInclude Include="InputManager.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\scene\GameScene.h">
+      <Filter>src\scene</Filter>
     </ClInclude>
-    <ClInclude Include="Light.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\scene\TestbedScene.h">
+      <Filter>src\scene</Filter>
     </ClInclude>
-    <ClInclude Include="CascadeShadow.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\scene\Transform.h">
+      <Filter>src\scene</Filter>
     </ClInclude>
-    <ClInclude Include="GltfLoader.h">
-      <Filter>헤더 파일</Filter>
+    <ClInclude Include="src\utils\GltfLoader.h">
+      <Filter>src\utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\standard.frag" />
-    <None Include="shaders\standard.vert" />
-    <None Include="shaders\global_types.glsl" />
-    <None Include="shaders\input_attributes.glsl" />
-    <None Include="shaders\common.glsl" />
-    <None Include="shaders\pbr_common.glsl" />
-    <None Include="shaders\shadow.vert" />
-    <None Include="shaders\shadow.frag" />
-    <None Include="shaders\skybox.frag" />
-    <None Include="shaders\skybox.glsl" />
-    <None Include="shaders\skybox.vert" />
-    <None Include="shaders\standard.glsl" />
+    <None Include="shaders\common.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\global_types.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\input_attributes.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\pbr_common.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\skybox.glsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\standard.glsl">
+      <Filter>shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="shaders\shadow.frag">
+      <Filter>shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\shadow.vert">
+      <Filter>shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\skybox.frag">
+      <Filter>shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\skybox.vert">
+      <Filter>shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\standard.frag">
+      <Filter>shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="shaders\standard.vert">
+      <Filter>shaders</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

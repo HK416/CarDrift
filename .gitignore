@@ -501,3 +501,6 @@ FodyWeavers.xsd
 
 # ImGui Config
 imgui.ini
+
+# SPIR-V
+*.spv
